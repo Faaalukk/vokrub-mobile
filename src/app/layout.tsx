@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
+import AuthGuard from "./components/AuthGuard";
 import { StoreProvider } from "./store/StoreContext";
 
 const hanken = Hanken_Grotesk({
@@ -30,10 +31,12 @@ export default function RootLayout({
     <html lang="en" className={`${hanken.variable} ${jetbrains.variable} h-full`}>
       <body className="h-screen flex flex-col overflow-hidden">
         <StoreProvider>
-          <main className="flex-1 overflow-y-auto vk-scroll pb-16">
-            {children}
-          </main>
-          <BottomNav />
+          <AuthGuard>
+            <main className="flex-1 overflow-y-auto vk-scroll pb-16">
+              {children}
+            </main>
+            <BottomNav />
+          </AuthGuard>
         </StoreProvider>
       </body>
     </html>

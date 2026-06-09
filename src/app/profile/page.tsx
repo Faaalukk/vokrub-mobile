@@ -1,15 +1,22 @@
 "use client";
 
-import { Book, Flame, Star, Clock, Crown, Bell, Globe, Shield, ChevronRight } from "lucide-react";
+import { Book, Flame, Star, Clock, Crown, Bell, Globe, Shield, ChevronRight, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useStore } from "../store/StoreContext";
 import Avatar from "../components/Avatar";
 import SectionHead from "../components/SectionHead";
 
 export default function ProfilePage() {
   const store = useStore();
+  const router = useRouter();
   const s = store.stats;
-  const { plan, setPlan } = store;
+  const { plan, logout } = store;
   const pro = plan === "pro";
+
+  function handleLogout() {
+    logout();
+    router.replace("/auth");
+  }
 
   const tiles = [
     { icon: Book,  label: "Words",   val: s.total,   clay: false },
@@ -29,9 +36,9 @@ export default function ProfilePage() {
       <div className="vk-col" style={{ gap: 22 }}>
         {/* User */}
         <div className="vk-row" style={{ gap: 14 }}>
-          <Avatar name="Sam Rivera" size={56} />
+          <Avatar name={store.profile?.name ?? "You"} size={56} />
           <div className="vk-col" style={{ gap: 5 }}>
-            <h1 className="vk-h1">Sam Rivera</h1>
+            <h1 className="vk-h1">{store.profile?.name ?? "You"}</h1>
             <div className="vk-row" style={{ gap: 8 }}>
               <span className={`vk-tag${pro ? " vk-tag-clay" : ""}`} style={pro ? {} : { background: "var(--surface-2)", color: "var(--ink-soft)" }}>
                 {pro && <Crown size={13} />} {pro ? "Pro" : "Free"}
@@ -72,7 +79,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <button className="vk-btn vk-btn-block" style={{ marginTop: 16, background: "color-mix(in oklch, white 18%, transparent)", color: "var(--on-accent)" }}
-                onClick={() => setPlan("free")}>Manage plan</button>
+              >Manage plan</button>
             </div>
           ) : (
             <div className="vk-col" style={{ gap: 12 }}>
@@ -90,7 +97,7 @@ export default function ProfilePage() {
                   <span className="vk-display" style={{ fontSize: 30 }}>$6</span>
                   <span className="vk-muted vk-sm">/ month</span>
                 </div>
-                <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" style={{ marginTop: 12 }} onClick={() => setPlan("pro")}>
+                <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" style={{ marginTop: 12 }}>
                   <Crown size={18} /> Go Pro
                 </button>
               </div>
@@ -120,6 +127,12 @@ export default function ProfilePage() {
             })}
           </div>
         </div>
+
+        {/* Logout */}
+        <button className="vk-btn vk-btn-line vk-btn-block" onClick={handleLogout}
+          style={{ color: "oklch(0.55 0.13 28)", borderColor: "oklch(0.88 0.04 28)" }}>
+          <LogOut size={17} /> Sign out
+        </button>
       </div>
     </div>
   );

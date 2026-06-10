@@ -1,4 +1,5 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://210.246.202.213:3000";
+console.log(BASE)
 
 export function getToken(): string {
   if (typeof window === "undefined") return "";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check } from "lucide-react";
+import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check, ChevronRight } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 import FlipCard from "../components/FlipCard";
 import type { Word } from "../store/StoreContext";
@@ -16,6 +16,8 @@ const MODES = [
 
 function shuffle<T>(arr: T[]) { return [...arr].sort(() => Math.random() - 0.5); }
 
+// ── Flash ─────────────────────────────────────────────────────────────────────
+
 function FlashStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean) => void }) {
   return (
     <div className="vk-col" style={{ gap: 16 }}>
@@ -28,6 +30,120 @@ function FlashStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean
     </div>
   );
 }
+
+// ── Multiple choice ───────────────────────────────────────────────────────────
+
+function MCStep({ card, pool, onAnswer }: { card: Word; pool: Word[]; onAnswer: (correct: boolean) => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const [options] = useState<Word[]>(() =>
+    shuffle([card, ...shuffle(pool.filter((w) => w.id !== card.id)).slice(0, 3)])
+  );
+
+  function pick(w: Word) {
+    if (selected) return;
+    setSelected(w.id);
+    setTimeout(() => onAnswer(w.id === card.id), 900);
+  }
+
+  function optionStyle(w: Word): React.CSSProperties {
+    if (!selected) return {};
+    if (w.id === card.id) return { background: "oklch(0.88 0.09 145)", borderColor: "oklch(0.60 0.14 145)", color: "oklch(0.28 0.10 145)" };
+    if (w.id === selected) return { background: "oklch(0.90 0.06 28)", borderColor: "oklch(0.58 0.14 28)", color: "oklch(0.35 0.12 28)" };
+    return { opacity: 0.45 };
+  }
+
+  return (
+    <div className="vk-col" style={{ gap: 14 }}>
+      <div className="vk-card" style={{ padding: "24px 20px", background: "var(--accent)", color: "var(--on-accent)", border: "none", boxShadow: "var(--sh-2)" }}>
+        <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>What word means…</div>
+        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
+        {card.note && <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8, fontStyle: "italic" }}>&ldquo;{card.note}&rdquo;</div>}
+      </div>
+      <div className="vk-col" style={{ gap: 8 }}>
+        {options.map((w) => (
+          <button
+            key={w.id}
+            onClick={() => pick(w)}
+            className="vk-card vk-pressable"
+            style={{
+              textAlign: "left", padding: "14px 16px", border: "1px solid var(--line)",
+              cursor: selected ? "default" : "pointer", transition: "background 0.2s, border-color 0.2s, opacity 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+              ...optionStyle(w),
+            }}
+          >
+            <span className="vk-h3" style={{ fontSize: 15 }}>{w.word}</span>
+            {selected && w.id === card.id && <Check size={17} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Type it ───────────────────────────────────────────────────────────────────
+
+function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean) => void }) {
+  const [value, setValue] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const correct = value.trim().toLowerCase() === card.word.trim().toLowerCase();
+
+  function submit() {
+    if (!value.trim() || submitted) return;
+    setSubmitted(true);
+  }
+
+  return (
+    <div className="vk-col" style={{ gap: 14 }}>
+      <div className="vk-card" style={{ padding: "24px 20px", background: "var(--accent)", color: "var(--on-accent)", border: "none", boxShadow: "var(--sh-2)" }}>
+        <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>Spell the word for…</div>
+        <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
+        {card.pos && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75, fontStyle: "italic" }}>{card.pos}</div>}
+      </div>
+
+      {!submitted ? (
+        <div className="vk-col" style={{ gap: 10 }}>
+          <input
+            autoFocus
+            className="vk-input"
+            placeholder="Type the word…"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            style={{ fontSize: 18, letterSpacing: "-0.01em", fontWeight: 600 }}
+          />
+          <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" onClick={submit} disabled={!value.trim()}>
+            Check
+          </button>
+        </div>
+      ) : (
+        <div className="vk-col" style={{ gap: 10 }}>
+          <div className="vk-card" style={{
+            padding: "16px 18px", border: "1px solid",
+            borderColor: correct ? "oklch(0.60 0.14 145)" : "oklch(0.58 0.14 28)",
+            background: correct ? "oklch(0.88 0.09 145)" : "oklch(0.90 0.06 28)",
+            color: correct ? "oklch(0.28 0.10 145)" : "oklch(0.35 0.12 28)",
+          }}>
+            <div className="vk-row" style={{ gap: 8, marginBottom: correct ? 0 : 6, fontWeight: 700, fontSize: 15 }}>
+              {correct ? <><Check size={17} /> Correct!</> : <><X size={17} /> Not quite</>}
+            </div>
+            {!correct && (
+              <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>
+                Answer: <strong style={{ fontWeight: 800 }}>{card.word}</strong>
+              </div>
+            )}
+          </div>
+          <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" onClick={() => onAnswer(correct)}>
+            Next <ChevronRight size={17} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Session ───────────────────────────────────────────────────────────────────
 
 function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void }) {
   const store = useStore();
@@ -101,6 +217,8 @@ function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void })
     );
   }
 
+  const effectiveMode = (mode === "mc" && store.words.length < 2) ? "flash" : mode;
+
   return (
     <div className="vk-col" style={{ gap: 16 }}>
       <div className="vk-between">
@@ -111,10 +229,14 @@ function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void })
         <span className="vk-faint vk-sm">{i + 1} / {deck.length}</span>
       </div>
       <div className="vk-bar"><span style={{ width: `${(i / deck.length) * 100}%` }} /></div>
-      {card && <FlashStep card={card} onAnswer={answer} />}
+      {card && effectiveMode === "mc" && <MCStep key={card.id} card={card} pool={store.words} onAnswer={answer} />}
+      {card && effectiveMode === "type" && <TypeStep key={card.id} card={card} onAnswer={answer} />}
+      {card && (effectiveMode === "flash" || effectiveMode === "due" || effectiveMode === "daily") && <FlashStep card={card} onAnswer={answer} />}
     </div>
   );
 }
+
+// ── Hub ───────────────────────────────────────────────────────────────────────
 
 export default function PracticePage() {
   const store = useStore();

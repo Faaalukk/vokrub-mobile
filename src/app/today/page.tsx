@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../store/StoreContext";
@@ -14,11 +14,32 @@ import WordForm from "./WordForm";
 import WordDetail from "./WordDetail";
 import type { Word } from "../store/StoreContext";
 
+const GREETINGS = [
+  "Good morning", "Rise and shine", "Morning",
+  "Good afternoon", "Hey there", "Hello",
+  "Good evening", "Evening", "Welcome back",
+];
+
+function getGreeting(name: string): string {
+  const h = new Date().getHours();
+  const pool = h < 12 ? GREETINGS.slice(0, 3) : h < 17 ? GREETINGS.slice(3, 6) : GREETINGS.slice(6);
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const first = name.split(" ")[0];
+  return `${pick}, ${first}.`;
+}
+
+function formatToday(): string {
+  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
+
 export default function TodayPage() {
   const store = useStore();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [detail, setDetail] = useState<Word | null>(null);
+
+  const customerName = store.profile?.name ?? "there";
+  const greeting = useMemo(() => getGreeting(customerName), [customerName]);
 
   const today = store.words.filter((w) => w.added === store.TODAY);
   const recent = today.length ? today : store.words.slice(0, 3);
@@ -29,10 +50,10 @@ export default function TodayPage() {
         {/* Header */}
         <div className="vk-between" style={{ alignItems: "flex-start" }}>
           <div className="vk-col" style={{ gap: 3 }}>
-            <span className="vk-eyebrow">Monday · Jun 9</span>
-            <h1 className="vk-display">Good morning, Sam.</h1>
+            <span className="vk-eyebrow">{formatToday()}</span>
+            <h1 className="vk-display">{greeting}</h1>
           </div>
-          <Avatar name="Sam Rivera" size={40} />
+          <Avatar name={customerName} size={40} />
         </div>
 
         {/* Streak */}

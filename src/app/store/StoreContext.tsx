@@ -52,7 +52,7 @@ export const SUGGESTED_CATS = [
   ]},
 ];
 
-type Profile = { id: number; name: string; email: string; plan: string; streak: number; words: number };
+type Profile = { id: number; name: string; email: string | null; phone: string | null; image: string; plan: string; streak: number; words: number };
 
 type StoreValue = {
   words: Word[];
@@ -69,8 +69,11 @@ type StoreValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => void;
   register: (name: string, email: string, password: string) => Promise<void>;
+  sendOTP: (phone: string) => Promise<void>;
+  verifyOTP: (phone: string, code: string) => Promise<void>;
   setPlan: (p: "free" | "pro") => void;
   addWord: (data: { word: string; pos: string; meaning: string; note: string }) => Promise<Word>;
   updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string }) => Promise<void>;
@@ -113,13 +116,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await apiFetch<{ token: string; customer: Profile }>("/api/customer/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    saveToken(data.token);
-    setProfile(data.customer);
+  const bootSession = useCallback(async (token: string, customerData?: Profile) => {
+    saveToken(token);
+    const profile = customerData ?? await apiFetch<Profile>("/api/customer/auth/me");
+    setProfile(profile);
     setIsAuthenticated(true);
     const [ws, cats] = await Promise.all([
       apiFetch<ApiWord[]>("/api/word"),
@@ -129,6 +129,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCategories(cats.map(toCategory));
   }, []);
 
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await apiFetch<{ token: string; customer: Profile }>("/api/customer/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    await bootSession(data.token, data.customer);
+  }, [bootSession]);
+
+  const loginWithToken = useCallback(async (token: string) => {
+    await bootSession(token);
+  }, [bootSession]);
+
   const register = useCallback(async (name: string, email: string, password: string) => {
     await apiFetch("/api/customer/auth/register", {
       method: "POST",
@@ -136,6 +148,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
     await login(email, password);
   }, [login]);
+
+  const sendOTP = useCallback(async (phone: string) => {
+    await apiFetch("/api/customer/auth/otp/send", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+  }, []);
+
+  const verifyOTP = useCallback(async (phone: string, code: string) => {
+    const data = await apiFetch<{ token: string; customer: Profile }>("/api/customer/auth/otp/verify", {
+      method: "POST",
+      body: JSON.stringify({ phone, code }),
+    });
+    await bootSession(data.token, data.customer);
+  }, [bootSession]);
 
   const logout = useCallback(() => {
     clearToken();
@@ -220,7 +247,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       plan: (profile?.plan === "pro_monthly" || profile?.plan === "pro_annual") ? "pro" : "free",
       profile,
       isAuthenticated, isLoading,
-      login, logout, register, setPlan: () => {},
+      login, loginWithToken, logout, register, sendOTP, verifyOTP, setPlan: () => {},
       addWord, updateWord, deleteWord, markReview,
       addCategory, deleteCategory, addSentence, updateSentence, deleteSentence,
     }}>

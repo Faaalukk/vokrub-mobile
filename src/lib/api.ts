@@ -63,9 +63,13 @@ export type ApiSentence = {
 export type CustomerProfile = {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
+  image: string;
   plan: string;
   streak: number;
   words: number;
   status: string;
 };
+
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://210.246.202.213:3000";

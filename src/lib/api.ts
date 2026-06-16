@@ -30,6 +30,13 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+export type ApiWordCategory = {
+  id: number;
+  customer_id: number;
+  name: string;
+  color: number;
+};
+
 export type ApiWord = {
   id: number;
   customer_id: number;
@@ -37,6 +44,7 @@ export type ApiWord = {
   pos: string;
   meaning: string;
   note: string;
+  category_id: number | null;
   box: number;
   seen: number;
   due: boolean;

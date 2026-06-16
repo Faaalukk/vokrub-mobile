@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check, ChevronRight } from "lucide-react";
+import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check, ChevronRight, Tag, Calendar, Shuffle } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 import FlipCard from "../components/FlipCard";
+import Sheet from "../components/Sheet";
 import type { Word } from "../store/StoreContext";
 
 const MODES = [
@@ -14,7 +15,181 @@ const MODES = [
   { key: "daily",  icon: Sparkles,  title: "Word of the day", desc: "One fresh word, every day" },
 ];
 
+const DATE_OPTIONS = [
+  { key: "today",  label: "Today" },
+  { key: "week",   label: "This week" },
+  { key: "month",  label: "This month" },
+  { key: "all",    label: "All time" },
+];
+
+const SOURCE_OPTIONS = [
+  { key: "all",      icon: Layers,   label: "All words" },
+  { key: "category", icon: Tag,      label: "By category" },
+  { key: "date",     icon: Calendar, label: "By date added" },
+  { key: "random",   icon: Shuffle,  label: "Random 10" },
+];
+
+type PracticeSettings = {
+  mode: string;
+  source: string;
+  categoryId: string | null;
+  dateRange: string;
+};
+
 function shuffle<T>(arr: T[]) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function buildDeck(words: Word[], settings: PracticeSettings, wordOfDay: Word | null): Word[] {
+  const { mode, source, categoryId, dateRange } = settings;
+
+  if (mode === "daily") return wordOfDay ? [wordOfDay] : [];
+
+  let pool = mode === "due" ? words.filter((w) => w.due) : words;
+
+  if (source === "category" && categoryId) {
+    pool = pool.filter((w) => w.category_id === categoryId);
+  } else if (source === "date") {
+    const now = new Date();
+    pool = pool.filter((w) => {
+      const d = new Date(w.added);
+      if (dateRange === "today") return w.added === now.toISOString().slice(0, 10);
+      if (dateRange === "week") return (now.getTime() - d.getTime()) <= 7 * 86400_000;
+      if (dateRange === "month") return (now.getTime() - d.getTime()) <= 30 * 86400_000;
+      return true;
+    });
+  }
+
+  const shuffled = shuffle(pool.length ? pool : words);
+  const limit = source === "random" ? 10 : Math.min(20, shuffled.length);
+  return shuffled.slice(0, limit);
+}
+
+// ── Settings sheet ─────────────────────────────────────────────────────────────
+
+function PracticeSettingsSheet({
+  mode,
+  onStart,
+  onClose,
+}: {
+  mode: string;
+  onStart: (settings: PracticeSettings) => void;
+  onClose: () => void;
+}) {
+  const store = useStore();
+  const [source, setSource] = useState("all");
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState("all");
+
+  const isSimpleMode = mode === "daily" || mode === "due";
+
+  function start() {
+    onStart({ mode, source: isSimpleMode ? "all" : source, categoryId, dateRange });
+  }
+
+  return (
+    <Sheet open onClose={onClose} title="Practice settings">
+      <div className="vk-col" style={{ gap: 20, padding: "8px 20px 28px" }}>
+
+        {!isSimpleMode && (
+          <>
+            {/* Source */}
+            <div className="vk-col" style={{ gap: 10 }}>
+              <span className="vk-label">Word source</span>
+              <div className="vk-col" style={{ gap: 8 }}>
+                {SOURCE_OPTIONS.map((opt) => {
+                  const Icon = opt.icon;
+                  const active = source === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSource(opt.key)}
+                      className="vk-card-flat"
+                      style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "13px 14px", cursor: "pointer", border: "1px solid",
+                        borderColor: active ? "var(--accent)" : "var(--line)",
+                        background: active ? "var(--accent-tint)" : "var(--surface)",
+                        borderRadius: "var(--r-md)", textAlign: "left",
+                      }}
+                    >
+                      <span style={{
+                        width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                        background: active ? "var(--accent)" : "var(--surface-2)",
+                        color: active ? "var(--on-accent)" : "var(--ink-soft)",
+                        flexShrink: 0,
+                      }}>
+                        <Icon size={17} />
+                      </span>
+                      <span className="vk-h3" style={{ fontSize: 14, color: active ? "var(--accent-ink)" : "var(--ink)" }}>
+                        {opt.label}
+                      </span>
+                      {active && <Check size={16} style={{ marginLeft: "auto", color: "var(--accent-ink)" }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Category picker */}
+            {source === "category" && store.wordCategories.length > 0 && (
+              <div className="vk-col" style={{ gap: 8 }}>
+                <span className="vk-label">Pick a category</span>
+                <div className="vk-wrap" style={{ gap: 8 }}>
+                  {store.wordCategories.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className={`vk-chip${categoryId === cat.id ? " is-on" : ""}`}
+                      onClick={() => setCategoryId(cat.id === categoryId ? null : cat.id)}
+                      style={categoryId === cat.id ? {
+                        background: `oklch(0.85 0.10 ${cat.color})`,
+                        borderColor: `oklch(0.60 0.14 ${cat.color})`,
+                        color: `oklch(0.25 0.08 ${cat.color})`,
+                      } : {}}
+                    >
+                      {cat.name}
+                    </span>
+                  ))}
+                </div>
+                {store.wordCategories.length === 0 && (
+                  <p className="vk-sm vk-faint">No categories yet. Add one when saving a word.</p>
+                )}
+              </div>
+            )}
+
+            {/* Date picker */}
+            {source === "date" && (
+              <div className="vk-col" style={{ gap: 8 }}>
+                <span className="vk-label">Date range</span>
+                <div className="vk-wrap" style={{ gap: 8 }}>
+                  {DATE_OPTIONS.map((d) => (
+                    <span
+                      key={d.key}
+                      className={`vk-chip${dateRange === d.key ? " is-on" : ""}`}
+                      onClick={() => setDateRange(d.key)}
+                    >
+                      {d.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {isSimpleMode && (
+          <p className="vk-body vk-muted" style={{ paddingTop: 4 }}>
+            {mode === "due"
+              ? "Reviews words marked as due for spaced repetition."
+              : "Focuses on your word of the day."}
+          </p>
+        )}
+
+        <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" onClick={start}>
+          Start session <ArrowRight size={17} />
+        </button>
+      </div>
+    </Sheet>
+  );
+}
 
 // ── Flash ─────────────────────────────────────────────────────────────────────
 
@@ -145,18 +320,14 @@ function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean)
 
 // ── Session ───────────────────────────────────────────────────────────────────
 
-function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void }) {
+function PracticeSession({ settings, onExit }: { settings: PracticeSettings; onExit: () => void }) {
   const store = useStore();
-  const [deck] = useState(() => {
-    if (mode === "daily") return store.wordOfDay ? [store.wordOfDay] : [];
-    const pool = mode === "due" ? store.words.filter((w) => w.due) : store.words;
-    return shuffle(pool.length ? pool : store.words).slice(0, Math.min(10, pool.length || store.words.length));
-  });
+  const [deck] = useState(() => buildDeck(store.words, settings, store.wordOfDay));
   const [i, setI] = useState(0);
   const [results, setResults] = useState<{ word: string; correct: boolean }[]>([]);
   const [done, setDone] = useState(false);
 
-  const label = MODES.find((m) => m.key === mode)?.title ?? "Practice";
+  const label = MODES.find((m) => m.key === settings.mode)?.title ?? "Practice";
   const card = deck[i];
 
   function answer(correct: boolean) {
@@ -179,9 +350,10 @@ function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void })
         </div>
         <div className="vk-col" style={{ alignItems: "center", gap: 8, padding: "40px 0", textAlign: "center" }}>
           <Check size={30} style={{ color: "var(--accent-ink)" }} />
-          <div className="vk-h2">All caught up</div>
-          <div className="vk-muted vk-sm">Nothing due right now — add more words to keep going.</div>
+          <div className="vk-h2">Nothing to practice</div>
+          <div className="vk-muted vk-sm">No words match this filter. Try a different source.</div>
         </div>
+        <button className="vk-btn vk-btn-ghost vk-btn-block" onClick={onExit}>Back</button>
       </div>
     );
   }
@@ -217,7 +389,7 @@ function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void })
     );
   }
 
-  const effectiveMode = (mode === "mc" && store.words.length < 2) ? "flash" : mode;
+  const effectiveMode = (settings.mode === "mc" && store.words.length < 2) ? "flash" : settings.mode;
 
   return (
     <div className="vk-col" style={{ gap: 16 }}>
@@ -240,11 +412,12 @@ function PracticeSession({ mode, onExit }: { mode: string; onExit: () => void })
 
 export default function PracticePage() {
   const store = useStore();
-  const [mode, setMode] = useState<string | null>(null);
+  const [pendingMode, setPendingMode] = useState<string | null>(null);
+  const [activeSettings, setActiveSettings] = useState<PracticeSettings | null>(null);
 
-  if (mode) return (
+  if (activeSettings) return (
     <div style={{ padding: "60px 18px 24px" }}>
-      <PracticeSession mode={mode} onExit={() => setMode(null)} />
+      <PracticeSession settings={activeSettings} onExit={() => setActiveSettings(null)} />
     </div>
   );
 
@@ -267,7 +440,7 @@ export default function PracticePage() {
             <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1 }}>{store.stats.due} words</div>
             <span style={{ fontSize: 13, opacity: 0.85, fontWeight: 500 }}>due for practice today</span>
           </div>
-          <button className="vk-btn" onClick={() => setMode("due")} disabled={!store.stats.due}
+          <button className="vk-btn" onClick={() => setPendingMode("due")} disabled={!store.stats.due}
             style={{ background: "var(--surface)", color: "var(--accent-ink)", opacity: store.stats.due ? 1 : 0.6 }}>
             Start <ArrowRight size={17} />
           </button>
@@ -280,7 +453,7 @@ export default function PracticePage() {
             {MODES.map((m, idx) => {
               const Icon = m.icon;
               return (
-                <button key={m.key} onClick={() => setMode(m.key)} className="vk-card vk-pressable vk-rise"
+                <button key={m.key} onClick={() => setPendingMode(m.key)} className="vk-card vk-pressable vk-rise"
                   style={{ textAlign: "left", padding: 16, border: "1px solid var(--line)", cursor: "pointer",
                     display: "flex", flexDirection: "column", gap: 10, animationDelay: `${idx * 35}ms`,
                     gridColumn: m.key === "daily" ? "1 / -1" : "auto" }}>
@@ -297,6 +470,18 @@ export default function PracticePage() {
           </div>
         </div>
       </div>
+
+      {/* Settings sheet — shown before session starts */}
+      {pendingMode && (
+        <PracticeSettingsSheet
+          mode={pendingMode}
+          onClose={() => setPendingMode(null)}
+          onStart={(settings) => {
+            setPendingMode(null);
+            setActiveSettings(settings);
+          }}
+        />
+      )}
     </div>
   );
 }

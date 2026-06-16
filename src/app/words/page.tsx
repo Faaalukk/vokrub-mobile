@@ -12,7 +12,7 @@ import DuplicateWordModal from "../components/DuplicateWordModal";
 import type { Word } from "../store/StoreContext";
 import { DuplicateWordError } from "../../lib/api";
 
-const FILTERS = [
+const STATUS_FILTERS = [
   { key: "all", label: "All" },
   { key: "due", label: "Due" },
   { key: "recent", label: "Recent" },
@@ -22,16 +22,18 @@ const FILTERS = [
 export default function WordsPage() {
   const store = useStore();
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<Word | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [dupWord, setDupWord] = useState<Word | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState<string | null>(null);
 
   let list = store.words;
   if (q.trim()) {
     const s = q.toLowerCase();
     list = list.filter((w) => w.word.toLowerCase().includes(s) || w.meaning.toLowerCase().includes(s));
   }
+  if (catFilter) list = list.filter((w) => w.category_id === catFilter);
   if (filter === "due") list = list.filter((w) => w.due);
   else if (filter === "mastered") list = list.filter((w) => w.box >= 5);
   else if (filter === "recent") list = list.slice(0, 6);
@@ -57,14 +59,40 @@ export default function WordsPage() {
             style={{ paddingLeft: 42, fontSize: 15 }} />
         </div>
 
-        {/* Filters */}
+        {/* Status filters */}
         <div className="vk-wrap" style={{ gap: 8 }}>
-          {FILTERS.map((f) => (
+          {STATUS_FILTERS.map((f) => (
             <span key={f.key} className={`vk-chip${filter === f.key ? " is-on" : ""}`} onClick={() => setFilter(f.key)}>
               {f.label}
             </span>
           ))}
         </div>
+
+        {/* Category filters */}
+        {store.wordCategories.length > 0 && (
+          <div className="vk-wrap" style={{ gap: 8 }}>
+            <span
+              className={`vk-chip${catFilter === null ? " is-on" : ""}`}
+              onClick={() => setCatFilter(null)}
+            >
+              All categories
+            </span>
+            {store.wordCategories.map((cat) => (
+              <span
+                key={cat.id}
+                className={`vk-chip${catFilter === cat.id ? " is-on" : ""}`}
+                onClick={() => setCatFilter(catFilter === cat.id ? null : cat.id)}
+                style={catFilter === cat.id ? {
+                  background: `oklch(0.85 0.10 ${cat.color})`,
+                  borderColor: `oklch(0.60 0.14 ${cat.color})`,
+                  color: `oklch(0.25 0.08 ${cat.color})`,
+                } : {}}
+              >
+                {cat.name}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Word list */}
         {list.length ? (

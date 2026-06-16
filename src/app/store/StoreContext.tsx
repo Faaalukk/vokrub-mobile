@@ -1,7 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { apiFetch, createWord, getToken, saveToken, clearToken, type ApiWord, type ApiCategory } from "../../lib/api";
+import { apiFetch, createWord, getToken, saveToken, clearToken, type ApiWord, type ApiCategory, type ApiWordCategory } from "../../lib/api";
+
+export type WordCategory = {
+  id: string;
+  name: string;
+  color: number;
+};
 
 export type Word = {
   id: string;
@@ -9,6 +15,7 @@ export type Word = {
   pos: string;
   meaning: string;
   note: string;
+  category_id: string | null;
   added: string;
   box: number;
   seen: number;
@@ -21,7 +28,11 @@ export type Category = { id: string; name: string; icon: string; hue: number; se
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function toWord(w: ApiWord): Word {
-  return { ...w, id: String(w.id) };
+  return { ...w, id: String(w.id), category_id: w.category_id != null ? String(w.category_id) : null };
+}
+
+function toWordCategory(c: ApiWordCategory): WordCategory {
+  return { id: String(c.id), name: c.name, color: c.color };
 }
 
 function toCategory(c: ApiCategory): Category {
@@ -56,6 +67,7 @@ type Profile = { id: number; name: string; email: string | null; phone: string |
 
 type StoreValue = {
   words: Word[];
+  wordCategories: WordCategory[];
   categories: Category[];
   TODAY: string;
   STREAK: number;
@@ -75,8 +87,10 @@ type StoreValue = {
   sendOTP: (phone: string) => Promise<void>;
   verifyOTP: (phone: string, code: string) => Promise<void>;
   setPlan: (p: "free" | "pro") => void;
-  addWord: (data: { word: string; pos: string; meaning: string; note: string }) => Promise<Word>;
-  updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string }) => Promise<void>;
+  addWord: (data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => Promise<Word>;
+  updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => Promise<void>;
+  addWordCategory: (data: { name: string; color: number }) => Promise<WordCategory>;
+  deleteWordCategory: (id: string) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
   markReview: (id: string, correct: boolean) => Promise<void>;
   addCategory: (data: { name: string; icon: string; hue: number }) => Promise<Category>;
@@ -90,6 +104,7 @@ const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [words, setWords] = useState<Word[]>([]);
+  const [wordCategories, setWordCategories] = useState<WordCategory[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -105,11 +120,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         return Promise.all([
           apiFetch<ApiWord[]>("/api/word"),
+          apiFetch<ApiWordCategory[]>("/api/word/category"),
           apiFetch<ApiCategory[]>("/api/phrase/category"),
         ]);
       })
-      .then(([ws, cats]) => {
+      .then(([ws, wcs, cats]) => {
         setWords(ws.map(toWord));
+        setWordCategories(wcs.map(toWordCategory));
         setCategories(cats.map(toCategory));
       })
       .catch(() => { clearToken(); })
@@ -121,11 +138,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const profile = customerData ?? await apiFetch<Profile>("/api/customer/auth/me");
     setProfile(profile);
     setIsAuthenticated(true);
-    const [ws, cats] = await Promise.all([
+    const [ws, wcs, cats] = await Promise.all([
       apiFetch<ApiWord[]>("/api/word"),
+      apiFetch<ApiWordCategory[]>("/api/word/category"),
       apiFetch<ApiCategory[]>("/api/phrase/category"),
     ]);
     setWords(ws.map(toWord));
+    setWordCategories(wcs.map(toWordCategory));
     setCategories(cats.map(toCategory));
   }, []);
 
@@ -169,19 +188,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
     setProfile(null);
     setWords([]);
+    setWordCategories([]);
     setCategories([]);
   }, []);
 
-  const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string }) => {
-    const w = await createWord(data); // throws DuplicateWordError on 409
+  const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => {
+    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null };
+    const w = await createWord(payload); // throws DuplicateWordError on 409
     const word = toWord(w);
     setWords((prev) => [word, ...prev]);
     return word;
   }, []);
 
-  const updateWord = useCallback(async (id: string, data: { word: string; pos: string; meaning: string; note: string }) => {
-    const w = await apiFetch<ApiWord>(`/api/word/${id}`, { method: "PUT", body: JSON.stringify(data) });
+  const updateWord = useCallback(async (id: string, data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => {
+    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null };
+    const w = await apiFetch<ApiWord>(`/api/word/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     setWords((prev) => prev.map((x) => (x.id === id ? toWord(w) : x)));
+  }, []);
+
+  const addWordCategory = useCallback(async (data: { name: string; color: number }) => {
+    const c = await apiFetch<ApiWordCategory>("/api/word/category", { method: "POST", body: JSON.stringify(data) });
+    const cat = toWordCategory(c);
+    setWordCategories((prev) => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)));
+    return cat;
+  }, []);
+
+  const deleteWordCategory = useCallback(async (id: string) => {
+    await apiFetch(`/api/word/category/${id}`, { method: "DELETE" });
+    setWordCategories((prev) => prev.filter((c) => c.id !== id));
+    setWords((prev) => prev.map((w) => w.category_id === id ? { ...w, category_id: null } : w));
   }, []);
 
   const deleteWord = useCallback(async (id: string) => {
@@ -238,7 +273,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      words, categories, TODAY,
+      words, wordCategories, categories, TODAY,
       STREAK: profile?.streak ?? 0,
       GOAL: 3,
       wordOfDay: words[0] ?? null,
@@ -249,6 +284,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated, isLoading,
       login, loginWithToken, logout, register, sendOTP, verifyOTP, setPlan: () => {},
       addWord, updateWord, deleteWord, markReview,
+      addWordCategory, deleteWordCategory,
       addCategory, deleteCategory, addSentence, updateSentence, deleteSentence,
     }}>
       {children}

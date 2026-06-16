@@ -12,7 +12,9 @@ import SectionHead from "../components/SectionHead";
 import Sheet from "../components/Sheet";
 import WordForm from "./WordForm";
 import WordDetail from "./WordDetail";
+import DuplicateWordModal from "../components/DuplicateWordModal";
 import type { Word } from "../store/StoreContext";
+import { DuplicateWordError } from "../../lib/api";
 
 const GREETINGS = [
   "Good morning", "Rise and shine", "Morning",
@@ -37,6 +39,7 @@ export default function TodayPage() {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [detail, setDetail] = useState<Word | null>(null);
+  const [dupWord, setDupWord] = useState<Word | null>(null);
 
   const customerName = store.profile?.name ?? "there";
   const greeting = useMemo(() => getGreeting(customerName), [customerName]);
@@ -94,9 +97,28 @@ export default function TodayPage() {
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add a word">
         <WordForm
           onCancel={() => setAddOpen(false)}
-          onSave={(d) => { store.addWord(d); setAddOpen(false); }}
+          onSave={async (d) => {
+            try {
+              await store.addWord(d);
+              setAddOpen(false);
+            } catch (err) {
+              if (err instanceof DuplicateWordError) {
+                setAddOpen(false);
+                const existing = store.words.find((w) => w.id === String(err.existing.id));
+                if (existing) setDupWord(existing);
+              }
+            }
+          }}
         />
       </Sheet>
+
+      {dupWord && (
+        <DuplicateWordModal
+          word={dupWord}
+          onClose={() => setDupWord(null)}
+          onView={(w) => { setDupWord(null); setDetail(w); }}
+        />
+      )}
 
       {/* Word detail sheet */}
       {detail && (

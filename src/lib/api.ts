@@ -43,6 +43,32 @@ export type ApiWord = {
   added: string;
 };
 
+export class DuplicateWordError extends Error {
+  existing: ApiWord;
+  constructor(word: ApiWord) {
+    super("Word already exists");
+    this.name = "DuplicateWordError";
+    this.existing = word;
+  }
+}
+
+export async function createWord(data: { word: string; pos: string; meaning: string; note: string }): Promise<ApiWord> {
+  const res = await fetch(`${BASE}/api/word`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(data),
+  });
+  if (res.status === 409) {
+    const body = await res.json();
+    throw new DuplicateWordError(body.word);
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? res.statusText);
+  }
+  return res.json();
+}
+
 export type ApiCategory = {
   id: number;
   customer_id: number;

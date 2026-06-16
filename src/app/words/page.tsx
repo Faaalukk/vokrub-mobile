@@ -8,7 +8,9 @@ import Sheet from "../components/Sheet";
 import SectionHead from "../components/SectionHead";
 import WordDetail from "../today/WordDetail";
 import WordForm from "../today/WordForm";
+import DuplicateWordModal from "../components/DuplicateWordModal";
 import type { Word } from "../store/StoreContext";
+import { DuplicateWordError } from "../../lib/api";
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -23,6 +25,7 @@ export default function WordsPage() {
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<Word | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [dupWord, setDupWord] = useState<Word | null>(null);
 
   let list = store.words;
   if (q.trim()) {
@@ -80,8 +83,30 @@ export default function WordsPage() {
       </div>
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add a word">
-        <WordForm onCancel={() => setAddOpen(false)} onSave={(d) => { store.addWord(d); setAddOpen(false); }} />
+        <WordForm
+          onCancel={() => setAddOpen(false)}
+          onSave={async (d) => {
+            try {
+              await store.addWord(d);
+              setAddOpen(false);
+            } catch (err) {
+              if (err instanceof DuplicateWordError) {
+                setAddOpen(false);
+                const existing = store.words.find((w) => w.id === String(err.existing.id));
+                if (existing) setDupWord(existing);
+              }
+            }
+          }}
+        />
       </Sheet>
+
+      {dupWord && (
+        <DuplicateWordModal
+          word={dupWord}
+          onClose={() => setDupWord(null)}
+          onView={(w) => { setDupWord(null); setDetail(w); }}
+        />
+      )}
 
       {detail && <WordDetail word={detail} onClose={() => setDetail(null)} onPractice={() => setDetail(null)} />}
     </div>

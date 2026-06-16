@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { apiFetch, getToken, saveToken, clearToken, type ApiWord, type ApiCategory } from "../../lib/api";
+import { apiFetch, createWord, getToken, saveToken, clearToken, type ApiWord, type ApiCategory } from "../../lib/api";
 
 export type Word = {
   id: string;
@@ -173,7 +173,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string }) => {
-    const w = await apiFetch<ApiWord>("/api/word", { method: "POST", body: JSON.stringify(data) });
+    const w = await createWord(data); // throws DuplicateWordError on 409
     const word = toWord(w);
     setWords((prev) => [word, ...prev]);
     return word;

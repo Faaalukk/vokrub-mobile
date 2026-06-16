@@ -77,12 +77,21 @@ function PracticeSettingsSheet({
   const store = useStore();
   const [source, setSource] = useState("all");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState("all");
+  const [dateRange, setDateRange] = useState("");
 
   const isSimpleMode = mode === "daily" || mode === "due";
 
+  const canStart = isSimpleMode || (
+    source !== "category" && source !== "date"
+  ) || (
+    source === "category" && categoryId !== null
+  ) || (
+    source === "date" && dateRange !== ""
+  );
+
   function start() {
-    onStart({ mode, source: isSimpleMode ? "all" : source, categoryId, dateRange });
+    if (!canStart) return;
+    onStart({ mode, source: isSimpleMode ? "all" : source, categoryId, dateRange: dateRange || "all" });
   }
 
   return (
@@ -183,7 +192,7 @@ function PracticeSettingsSheet({
           </p>
         )}
 
-        <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" onClick={start}>
+        <button className="vk-btn vk-btn-primary vk-btn-block vk-btn-lg" onClick={start} disabled={!canStart}>
           Start session <ArrowRight size={17} />
         </button>
       </div>
@@ -196,7 +205,7 @@ function PracticeSettingsSheet({
 function FlashStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean) => void }) {
   return (
     <div className="vk-col" style={{ gap: 16 }}>
-      <FlipCard word={card} height={296} />
+      <FlipCard word={card} height={296} hideNote />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <button className="vk-btn vk-btn-line vk-btn-lg" onClick={() => onAnswer(false)} style={{ color: "oklch(0.5 0.12 28)" }}>Review again</button>
         <button className="vk-btn vk-btn-primary vk-btn-lg" onClick={() => onAnswer(true)}>I knew it</button>
@@ -233,7 +242,6 @@ function MCStep({ card, pool, onAnswer }: { card: Word; pool: Word[]; onAnswer: 
       <div className="vk-card" style={{ padding: "24px 20px", background: "var(--accent)", color: "var(--on-accent)", border: "none", boxShadow: "var(--sh-2)" }}>
         <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>What word means…</div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
-        {card.note && <div style={{ marginTop: 10, fontSize: 13, opacity: 0.8, fontStyle: "italic" }}>&ldquo;{card.note}&rdquo;</div>}
       </div>
       <div className="vk-col" style={{ gap: 8 }}>
         {options.map((w) => (

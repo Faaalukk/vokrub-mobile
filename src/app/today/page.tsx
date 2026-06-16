@@ -13,6 +13,7 @@ import Sheet from "../components/Sheet";
 import WordForm from "./WordForm";
 import WordDetail from "./WordDetail";
 import DuplicateWordModal from "../components/DuplicateWordModal";
+import QuickAddSynonymsSheet from "../components/QuickAddSynonymsSheet";
 import type { Word } from "../store/StoreContext";
 import { DuplicateWordError } from "../../lib/api";
 
@@ -40,6 +41,7 @@ export default function TodayPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [detail, setDetail] = useState<Word | null>(null);
   const [dupWord, setDupWord] = useState<Word | null>(null);
+  const [quickAdd, setQuickAdd] = useState<{ synonyms: string[]; originalWord: string } | null>(null);
 
   const customerName = store.profile?.name ?? "there";
   const greeting = useMemo(() => getGreeting(customerName), [customerName]);
@@ -101,6 +103,9 @@ export default function TodayPage() {
             try {
               await store.addWord(d);
               setAddOpen(false);
+              if (d.queuedSynonyms && d.queuedSynonyms.length > 0) {
+                setQuickAdd({ synonyms: d.queuedSynonyms, originalWord: d.word });
+              }
             } catch (err) {
               if (err instanceof DuplicateWordError) {
                 setAddOpen(false);
@@ -117,6 +122,14 @@ export default function TodayPage() {
           word={dupWord}
           onClose={() => setDupWord(null)}
           onView={(w) => { setDupWord(null); setDetail(w); }}
+        />
+      )}
+
+      {quickAdd && (
+        <QuickAddSynonymsSheet
+          synonyms={quickAdd.synonyms}
+          originalWord={quickAdd.originalWord}
+          onClose={() => setQuickAdd(null)}
         />
       )}
 

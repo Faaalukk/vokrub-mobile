@@ -9,6 +9,7 @@ import SectionHead from "../components/SectionHead";
 import WordDetail from "../today/WordDetail";
 import WordForm from "../today/WordForm";
 import DuplicateWordModal from "../components/DuplicateWordModal";
+import QuickAddSynonymsSheet from "../components/QuickAddSynonymsSheet";
 import type { Word } from "../store/StoreContext";
 import { DuplicateWordError } from "../../lib/api";
 
@@ -27,6 +28,7 @@ export default function WordsPage() {
   const [dupWord, setDupWord] = useState<Word | null>(null);
   const [filter, setFilter] = useState("all");
   const [catFilter, setCatFilter] = useState<string | null>(null);
+  const [quickAdd, setQuickAdd] = useState<{ synonyms: string[]; originalWord: string } | null>(null);
 
   let list = store.words;
   if (q.trim()) {
@@ -117,6 +119,9 @@ export default function WordsPage() {
             try {
               await store.addWord(d);
               setAddOpen(false);
+              if (d.queuedSynonyms && d.queuedSynonyms.length > 0) {
+                setQuickAdd({ synonyms: d.queuedSynonyms, originalWord: d.word });
+              }
             } catch (err) {
               if (err instanceof DuplicateWordError) {
                 setAddOpen(false);
@@ -133,6 +138,14 @@ export default function WordsPage() {
           word={dupWord}
           onClose={() => setDupWord(null)}
           onView={(w) => { setDupWord(null); setDetail(w); }}
+        />
+      )}
+
+      {quickAdd && (
+        <QuickAddSynonymsSheet
+          synonyms={quickAdd.synonyms}
+          originalWord={quickAdd.originalWord}
+          onClose={() => setQuickAdd(null)}
         />
       )}
 

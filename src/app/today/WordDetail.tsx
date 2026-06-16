@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Layers, Pencil, Trash2, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Layers, Pencil, Trash2, Calendar, BookOpen, Pin } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 import type { Word } from "../store/StoreContext";
 import Sheet from "../components/Sheet";
@@ -9,12 +9,29 @@ import FlipCard from "../components/FlipCard";
 import BoxMeter from "../components/BoxMeter";
 import WordForm from "./WordForm";
 
-type WordDetailProps = { word: Word; onClose: () => void; onPractice: () => void };
+type WordDetailProps = { word: Word; onClose: () => void; onPractice: () => void; onViewWord?: (w: Word) => void };
 
-export default function WordDetail({ word, onClose, onPractice }: WordDetailProps) {
+export default function WordDetail({ word, onClose, onPractice, onViewWord }: WordDetailProps) {
   const store = useStore();
   const [editing, setEditing] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const live = store.words.find((w) => w.id === word.id) || word;
+
+  useEffect(() => {
+    setSuggestions([]);
+    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(live.word)}&max=10`)
+      .then((r) => r.json())
+      .then((results: { word: string }[]) => setSuggestions(results.map((r) => r.word)))
+      .catch(() => {});
+  }, [live.word]);
+
+  function pinSynonym(syn: string) {
+    const next = live.synonyms.includes(syn) ? live.synonyms.filter((s) => s !== syn) : [...live.synonyms, syn];
+    store.updateWord(live.id, { word: live.word, pos: live.pos, meaning: live.meaning, note: live.note, synonyms: next, category_id: live.category_id });
+  }
+
+  const allSynonyms = Array.from(new Set([...live.synonyms, ...suggestions]));
+  const libraryMap = new Map(store.words.map((w) => [w.word.toLowerCase(), w]));
 
   if (editing) {
     return (
@@ -36,6 +53,43 @@ export default function WordDetail({ word, onClose, onPractice }: WordDetailProp
         {live.note && (
           <div className="vk-card-flat" style={{ padding: "14px 16px", background: "var(--surface-2)" }}>
             <p className="vk-body" style={{ fontWeight: 500 }}>{live.note}</p>
+          </div>
+        )}
+
+        {allSynonyms.length > 0 && (
+          <div className="vk-card-flat" style={{ padding: "14px 16px" }}>
+            <div className="vk-label" style={{ marginBottom: 10 }}>Synonyms</div>
+            <div className="vk-wrap" style={{ gap: 8 }}>
+              {allSynonyms.map((syn) => {
+                const inLibrary = libraryMap.get(syn.toLowerCase());
+                const pinned = live.synonyms.includes(syn);
+                return (
+                  <span
+                    key={syn}
+                    className="vk-chip"
+                    style={inLibrary ? {
+                      background: "var(--accent-tint)", borderColor: "var(--accent)",
+                      color: "var(--accent-ink)", cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 5,
+                    } : { display: "flex", alignItems: "center", gap: 5 }}
+                    onClick={() => inLibrary && onViewWord?.(inLibrary)}
+                  >
+                    {inLibrary && <BookOpen size={11} />}
+                    {syn}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); pinSynonym(syn); }}
+                      style={{
+                        border: "none", background: "none", cursor: "pointer", padding: 0,
+                        color: pinned ? "var(--accent-ink)" : "var(--ink-faint)",
+                        display: "flex", alignItems: "center",
+                      }}
+                    >
+                      <Pin size={11} fill={pinned ? "currentColor" : "none"} />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
         )}
 

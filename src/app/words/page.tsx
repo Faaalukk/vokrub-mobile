@@ -8,9 +8,12 @@ import Sheet from "../components/Sheet";
 import SectionHead from "../components/SectionHead";
 import WordDetail from "../today/WordDetail";
 import WordForm from "../today/WordForm";
+import DuplicateWordModal from "../components/DuplicateWordModal";
+import QuickAddSynonymsSheet from "../components/QuickAddSynonymsSheet";
 import type { Word } from "../store/StoreContext";
+import { DuplicateWordError } from "../../lib/api";
 
-const FILTERS = [
+const STATUS_FILTERS = [
   { key: "all", label: "All" },
   { key: "due", label: "Due" },
   { key: "recent", label: "Recent" },
@@ -20,15 +23,19 @@ const FILTERS = [
 export default function WordsPage() {
   const store = useStore();
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<Word | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [dupWord, setDupWord] = useState<Word | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [catFilter, setCatFilter] = useState<string | null>(null);
+  const [quickAdd, setQuickAdd] = useState<{ synonyms: string[]; originalWord: string } | null>(null);
 
   let list = store.words;
   if (q.trim()) {
     const s = q.toLowerCase();
     list = list.filter((w) => w.word.toLowerCase().includes(s) || w.meaning.toLowerCase().includes(s));
   }
+  if (catFilter) list = list.filter((w) => w.category_id === catFilter);
   if (filter === "due") list = list.filter((w) => w.due);
   else if (filter === "mastered") list = list.filter((w) => w.box >= 5);
   else if (filter === "recent") list = list.slice(0, 6);
@@ -54,14 +61,40 @@ export default function WordsPage() {
             style={{ paddingLeft: 42, fontSize: 15 }} />
         </div>
 
-        {/* Filters */}
+        {/* Status filters */}
         <div className="vk-wrap" style={{ gap: 8 }}>
-          {FILTERS.map((f) => (
+          {STATUS_FILTERS.map((f) => (
             <span key={f.key} className={`vk-chip${filter === f.key ? " is-on" : ""}`} onClick={() => setFilter(f.key)}>
               {f.label}
             </span>
           ))}
         </div>
+
+        {/* Category filters */}
+        {store.wordCategories.length > 0 && (
+          <div className="vk-wrap" style={{ gap: 8 }}>
+            <span
+              className={`vk-chip${catFilter === null ? " is-on" : ""}`}
+              onClick={() => setCatFilter(null)}
+            >
+              All categories
+            </span>
+            {store.wordCategories.map((cat) => (
+              <span
+                key={cat.id}
+                className={`vk-chip${catFilter === cat.id ? " is-on" : ""}`}
+                onClick={() => setCatFilter(catFilter === cat.id ? null : cat.id)}
+                style={catFilter === cat.id ? {
+                  background: `oklch(0.85 0.10 ${cat.color})`,
+                  borderColor: `oklch(0.60 0.14 ${cat.color})`,
+                  color: `oklch(0.25 0.08 ${cat.color})`,
+                } : {}}
+              >
+                {cat.name}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Word list */}
         {list.length ? (
@@ -80,10 +113,43 @@ export default function WordsPage() {
       </div>
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Add a word">
-        <WordForm onCancel={() => setAddOpen(false)} onSave={(d) => { store.addWord(d); setAddOpen(false); }} />
+        <WordForm
+          onCancel={() => setAddOpen(false)}
+          onSave={async (d) => {
+            try {
+              await store.addWord(d);
+              setAddOpen(false);
+              if (d.queuedSynonyms && d.queuedSynonyms.length > 0) {
+                setQuickAdd({ synonyms: d.queuedSynonyms, originalWord: d.word });
+              }
+            } catch (err) {
+              if (err instanceof DuplicateWordError) {
+                setAddOpen(false);
+                const existing = store.words.find((w) => w.id === String(err.existing.id));
+                if (existing) setDupWord(existing);
+              }
+            }
+          }}
+        />
       </Sheet>
 
-      {detail && <WordDetail word={detail} onClose={() => setDetail(null)} onPractice={() => setDetail(null)} />}
+      {dupWord && (
+        <DuplicateWordModal
+          word={dupWord}
+          onClose={() => setDupWord(null)}
+          onView={(w) => { setDupWord(null); setDetail(w); }}
+        />
+      )}
+
+      {quickAdd && (
+        <QuickAddSynonymsSheet
+          synonyms={quickAdd.synonyms}
+          originalWord={quickAdd.originalWord}
+          onClose={() => setQuickAdd(null)}
+        />
+      )}
+
+      {detail && <WordDetail word={detail} onClose={() => setDetail(null)} onPractice={() => setDetail(null)} onViewWord={(w) => setDetail(w)} />}
     </div>
   );
 }

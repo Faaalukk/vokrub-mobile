@@ -126,6 +126,7 @@ export default function TodayPage() {
           word={detail}
           onClose={() => setDetail(null)}
           onPractice={() => { setDetail(null); router.push("/practice"); }}
+          onViewWord={(w) => setDetail(w)}
         />
       )}
     </div>

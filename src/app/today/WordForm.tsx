@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus, Tag } from "lucide-react";
+import { useState, useRef } from "react";
+import { Check, Plus, Tag, X } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 
 const POS = ["noun", "verb", "adjective", "adverb", "phrase"];
@@ -15,7 +15,7 @@ const CAT_COLORS = [
   { hue: 60,  label: "Yellow" },
 ];
 
-type WordFormData = { word: string; pos: string; meaning: string; note: string; category_id?: string | null };
+type WordFormData = { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null };
 type WordFormProps = {
   initial?: WordFormData;
   onSave: (d: WordFormData) => void;
@@ -29,6 +29,9 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const [meaning, setMeaning] = useState(initial?.meaning ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(initial?.category_id ?? null);
+  const [synonyms, setSynonyms] = useState<string[]>(initial?.synonyms ?? []);
+  const [synInput, setSynInput] = useState("");
+  const synRef = useRef<HTMLInputElement>(null);
 
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -36,6 +39,18 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const [creatingCat, setCreatingCat] = useState(false);
 
   const valid = word.trim() && meaning.trim();
+
+  function addSynonym() {
+    const val = synInput.trim().toLowerCase();
+    if (!val || synonyms.includes(val)) { setSynInput(""); return; }
+    setSynonyms((prev) => [...prev, val]);
+    setSynInput("");
+    synRef.current?.focus();
+  }
+
+  function removeSynonym(s: string) {
+    setSynonyms((prev) => prev.filter((x) => x !== s));
+  }
 
   async function handleCreateCategory() {
     if (!newCatName.trim() || creatingCat) return;
@@ -74,6 +89,33 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       <div className="vk-col" style={{ gap: 7 }}>
         <label className="vk-label">Personal note <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
         <textarea className="vk-textarea" rows={2} placeholder="Where you heard it, an example, a memory…" value={note} onChange={(e) => setNote(e.target.value)} />
+      </div>
+
+      {/* Synonyms */}
+      <div className="vk-col" style={{ gap: 7 }}>
+        <label className="vk-label">Synonyms <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
+        <div className="vk-wrap" style={{ gap: 7, minHeight: 32 }}>
+          {synonyms.map((s) => (
+            <span key={s} className="vk-chip is-on" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              {s}
+              <X size={11} style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeSynonym(s)} />
+            </span>
+          ))}
+        </div>
+        <div className="vk-row" style={{ gap: 8 }}>
+          <input
+            ref={synRef}
+            className="vk-input"
+            placeholder="e.g. fleeting"
+            value={synInput}
+            onChange={(e) => setSynInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSynonym(); } }}
+            style={{ flex: 1 }}
+          />
+          <button className="vk-btn vk-btn-soft vk-btn-sm" onClick={addSynonym} disabled={!synInput.trim()}>
+            <Plus size={15} /> Add
+          </button>
+        </div>
       </div>
 
       {/* Category */}
@@ -146,7 +188,7 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       <div className="vk-row" style={{ gap: 10, marginTop: 2 }}>
         {onCancel && <button className="vk-btn vk-btn-ghost" style={{ flex: 1 }} onClick={onCancel}>Cancel</button>}
         <button className="vk-btn vk-btn-primary" style={{ flex: 2 }} disabled={!valid}
-          onClick={() => valid && onSave({ word, pos, meaning, note, category_id: categoryId })}>
+          onClick={() => valid && onSave({ word, pos, meaning, note, synonyms, category_id: categoryId })}>
           <Check size={18} /> {initial ? "Save changes" : "Save word"}
         </button>
       </div>

@@ -16,6 +16,7 @@ export type Word = {
   meaning: string;
   note: string;
   category_id: string | null;
+  synonyms: string[];
   added: string;
   box: number;
   seen: number;
@@ -28,7 +29,12 @@ export type Category = { id: string; name: string; icon: string; hue: number; se
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function toWord(w: ApiWord): Word {
-  return { ...w, id: String(w.id), category_id: w.category_id != null ? String(w.category_id) : null };
+  return {
+    ...w,
+    id: String(w.id),
+    category_id: w.category_id != null ? String(w.category_id) : null,
+    synonyms: w.synonyms ?? [],
+  };
 }
 
 function toWordCategory(c: ApiWordCategory): WordCategory {
@@ -87,8 +93,8 @@ type StoreValue = {
   sendOTP: (phone: string) => Promise<void>;
   verifyOTP: (phone: string, code: string) => Promise<void>;
   setPlan: (p: "free" | "pro") => void;
-  addWord: (data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => Promise<Word>;
-  updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => Promise<void>;
+  addWord: (data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<Word>;
+  updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   addWordCategory: (data: { name: string; color: number }) => Promise<WordCategory>;
   deleteWordCategory: (id: string) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
@@ -192,16 +198,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCategories([]);
   }, []);
 
-  const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => {
-    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null };
+  const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
     const w = await createWord(payload); // throws DuplicateWordError on 409
     const word = toWord(w);
     setWords((prev) => [word, ...prev]);
     return word;
   }, []);
 
-  const updateWord = useCallback(async (id: string, data: { word: string; pos: string; meaning: string; note: string; category_id?: string | null }) => {
-    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null };
+  const updateWord = useCallback(async (id: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+    const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
     const w = await apiFetch<ApiWord>(`/api/word/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     setWords((prev) => prev.map((x) => (x.id === id ? toWord(w) : x)));
   }, []);

@@ -136,7 +136,7 @@ export default function WordsPage() {
         />
       )}
 
-      {detail && <WordDetail word={detail} onClose={() => setDetail(null)} onPractice={() => setDetail(null)} />}
+      {detail && <WordDetail word={detail} onClose={() => setDetail(null)} onPractice={() => setDetail(null)} onViewWord={(w) => setDetail(w)} />}
     </div>
   );
 }

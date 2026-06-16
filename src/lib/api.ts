@@ -45,6 +45,7 @@ export type ApiWord = {
   meaning: string;
   note: string;
   category_id: number | null;
+  synonyms: string[];
   box: number;
   seen: number;
   due: boolean;
@@ -60,7 +61,7 @@ export class DuplicateWordError extends Error {
   }
 }
 
-export async function createWord(data: { word: string; pos: string; meaning: string; note: string }): Promise<ApiWord> {
+export async function createWord(data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: number | null }): Promise<ApiWord> {
   const res = await fetch(`${BASE}/api/word`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },

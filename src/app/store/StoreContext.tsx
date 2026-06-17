@@ -200,9 +200,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const addWord = useCallback(async (data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
     const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
-    const w = await createWord(payload); // throws DuplicateWordError on 409
+    const { word: w, streak } = await createWord(payload); // throws DuplicateWordError on 409
     const word = toWord(w);
     setWords((prev) => [word, ...prev]);
+    setProfile((prev) => prev ? { ...prev, streak } : prev);
     return word;
   }, []);
 

@@ -1,14 +1,16 @@
 "use client";
 
-import { Book, Flame, Star, Clock, Crown, Bell, Globe, Shield, ChevronRight, LogOut } from "lucide-react";
+import { Book, Flame, Star, Clock, Crown, Bell, Globe, Shield, ChevronRight, LogOut, Sun, Moon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../store/StoreContext";
+import { useTheme } from "../store/ThemeContext";
 import Avatar from "../components/Avatar";
 import SectionHead from "../components/SectionHead";
 
 export default function ProfilePage() {
   const store = useStore();
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const s = store.stats;
   const { plan, logout } = store;
   const pro = plan === "pro";
@@ -109,6 +111,28 @@ export default function ProfilePage() {
         <div>
           <SectionHead title="Settings" />
           <div className="vk-card" style={{ overflow: "hidden" }}>
+            {/* Appearance toggle */}
+            <div className="vk-between" style={{ padding: "14px 16px", borderBottom: "1px solid var(--line-soft)" }}>
+              <div className="vk-row" style={{ gap: 12 }}>
+                {theme === "dark" ? <Moon size={19} style={{ color: "var(--ink-soft)" }} /> : <Sun size={19} style={{ color: "var(--ink-soft)" }} />}
+                <span style={{ fontWeight: 600, fontSize: 14.5 }}>Appearance</span>
+              </div>
+              <button
+                onClick={toggleTheme}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "var(--surface-2)", border: "1px solid var(--line)",
+                  borderRadius: 999, padding: "6px 12px", cursor: "pointer",
+                  fontSize: 13, fontWeight: 700, color: "var(--ink-soft)",
+                  fontFamily: "var(--ff)",
+                }}
+              >
+                {theme === "dark"
+                  ? <><Moon size={14} /> Dark</>
+                  : <><Sun size={14} /> Light</>}
+              </button>
+            </div>
+
             {settings.map((r, i) => {
               const Icon = r.icon;
               return (

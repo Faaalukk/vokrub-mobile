@@ -294,7 +294,7 @@ export default function PhrasesPage() {
   }
 
   return (
-    <div style={{ padding: "60px 18px 24px" }}>
+    <div className="vk-page">
       <div className="vk-col" style={{ gap: 22 }}>
         {/* Header */}
         <div className="vk-between" style={{ alignItems: "flex-start" }}>

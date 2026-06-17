@@ -34,7 +34,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div style={{ padding: "60px 18px 24px" }}>
+    <div className="vk-page">
       <div className="vk-col" style={{ gap: 22 }}>
         {/* User */}
         <div className="vk-row" style={{ gap: 14 }}>

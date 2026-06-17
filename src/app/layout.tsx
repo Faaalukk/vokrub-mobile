@@ -34,14 +34,18 @@ export default function RootLayout({
         {/* Prevent flash of wrong theme */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('vk_theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.setAttribute('data-theme','dark');}})();` }} />
       </head>
-      <body className="h-screen flex flex-col overflow-hidden">
+      <body>
         <ThemeProvider>
           <StoreProvider>
             <AuthGuard>
-              <main className="flex-1 overflow-y-auto vk-scroll pb-16">
-                {children}
-              </main>
-              <BottomNav />
+              <div className="vk-app-shell">
+                <BottomNav />
+                <main className="vk-app-main vk-scroll">
+                  <div className="vk-content-wrap">
+                    {children}
+                  </div>
+                </main>
+              </div>
             </AuthGuard>
           </StoreProvider>
         </ThemeProvider>

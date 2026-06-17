@@ -424,13 +424,13 @@ export default function PracticePage() {
   const [activeSettings, setActiveSettings] = useState<PracticeSettings | null>(null);
 
   if (activeSettings) return (
-    <div style={{ padding: "60px 18px 24px" }}>
+    <div className="vk-page">
       <PracticeSession settings={activeSettings} onExit={() => setActiveSettings(null)} />
     </div>
   );
 
   return (
-    <div style={{ padding: "60px 18px 24px" }}>
+    <div className="vk-page">
       <div className="vk-col" style={{ gap: 18 }}>
         <div className="vk-col" style={{ gap: 3 }}>
           <span className="vk-eyebrow">Practice</span>

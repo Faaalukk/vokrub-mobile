@@ -41,7 +41,7 @@ export default function WordsPage() {
   else if (filter === "recent") list = list.slice(0, 6);
 
   return (
-    <div style={{ padding: "60px 18px 24px" }}>
+    <div className="vk-page">
       <div className="vk-col" style={{ gap: 16 }}>
         {/* Header */}
         <div className="vk-between" style={{ alignItems: "flex-start" }}>

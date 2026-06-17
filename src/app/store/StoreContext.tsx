@@ -1,12 +1,18 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
-import { apiFetch, createWord, getToken, saveToken, clearToken, type ApiWord, type ApiCategory, type ApiWordCategory } from "../../lib/api";
+import { apiFetch, createWord, getToken, saveToken, clearToken, type ApiWord, type ApiCategory, type ApiWordCategory, type ApiWordFamily } from "../../lib/api";
 
 export type WordCategory = {
   id: string;
   name: string;
   color: number;
+};
+
+export type WordFamily = {
+  id: string;
+  name: string;
+  wordIds: string[];
 };
 
 export type Word = {
@@ -39,6 +45,10 @@ function toWord(w: ApiWord): Word {
 
 function toWordCategory(c: ApiWordCategory): WordCategory {
   return { id: String(c.id), name: c.name, color: c.color };
+}
+
+function toWordFamily(f: ApiWordFamily): WordFamily {
+  return { id: String(f.id), name: f.name, wordIds: (f.members ?? []).map((m) => String(m.word_id)) };
 }
 
 function toCategory(c: ApiCategory): Category {
@@ -74,6 +84,7 @@ type Profile = { id: number; name: string; email: string | null; phone: string |
 type StoreValue = {
   words: Word[];
   wordCategories: WordCategory[];
+  wordFamilies: WordFamily[];
   categories: Category[];
   TODAY: string;
   STREAK: number;
@@ -97,6 +108,10 @@ type StoreValue = {
   updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   addWordCategory: (data: { name: string; color: number }) => Promise<WordCategory>;
   deleteWordCategory: (id: string) => Promise<void>;
+  createWordFamily: (data: { name: string; wordId?: string }) => Promise<WordFamily>;
+  addToFamily: (familyId: string, wordId: string) => Promise<void>;
+  removeFromFamily: (familyId: string, wordId: string) => Promise<void>;
+  deleteWordFamily: (id: string) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
   markReview: (id: string, correct: boolean) => Promise<void>;
   addCategory: (data: { name: string; icon: string; hue: number }) => Promise<Category>;
@@ -111,6 +126,7 @@ const StoreContext = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [words, setWords] = useState<Word[]>([]);
   const [wordCategories, setWordCategories] = useState<WordCategory[]>([]);
+  const [wordFamilies, setWordFamilies] = useState<WordFamily[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -127,12 +143,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return Promise.all([
           apiFetch<ApiWord[]>("/api/word"),
           apiFetch<ApiWordCategory[]>("/api/word/category"),
+          apiFetch<ApiWordFamily[]>("/api/word/family"),
           apiFetch<ApiCategory[]>("/api/phrase/category"),
         ]);
       })
-      .then(([ws, wcs, cats]) => {
+      .then(([ws, wcs, wfs, cats]) => {
         setWords(ws.map(toWord));
         setWordCategories(wcs.map(toWordCategory));
+        setWordFamilies(wfs.map(toWordFamily));
         setCategories(cats.map(toCategory));
       })
       .catch(() => { clearToken(); })
@@ -144,13 +162,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const profile = customerData ?? await apiFetch<Profile>("/api/customer/auth/me");
     setProfile(profile);
     setIsAuthenticated(true);
-    const [ws, wcs, cats] = await Promise.all([
+    const [ws, wcs, wfs, cats] = await Promise.all([
       apiFetch<ApiWord[]>("/api/word"),
       apiFetch<ApiWordCategory[]>("/api/word/category"),
+      apiFetch<ApiWordFamily[]>("/api/word/family"),
       apiFetch<ApiCategory[]>("/api/phrase/category"),
     ]);
     setWords(ws.map(toWord));
     setWordCategories(wcs.map(toWordCategory));
+    setWordFamilies(wfs.map(toWordFamily));
     setCategories(cats.map(toCategory));
   }, []);
 
@@ -195,6 +215,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
     setWords([]);
     setWordCategories([]);
+    setWordFamilies([]);
     setCategories([]);
   }, []);
 
@@ -211,6 +232,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
     const w = await apiFetch<ApiWord>(`/api/word/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     setWords((prev) => prev.map((x) => (x.id === id ? toWord(w) : x)));
+  }, []);
+
+  const createWordFamily = useCallback(async (data: { name: string; wordId?: string }) => {
+    const body: Record<string, unknown> = { name: data.name };
+    if (data.wordId) body.word_id = Number(data.wordId);
+    const f = await apiFetch<ApiWordFamily>("/api/word/family", { method: "POST", body: JSON.stringify(body) });
+    const family = toWordFamily(f);
+    setWordFamilies((prev) => [...prev, family]);
+    return family;
+  }, []);
+
+  const addToFamily = useCallback(async (familyId: string, wordId: string) => {
+    const f = await apiFetch<ApiWordFamily>(`/api/word/family/${familyId}/member`, { method: "POST", body: JSON.stringify({ word_id: Number(wordId) }) });
+    setWordFamilies((prev) => prev.map((x) => x.id === familyId ? toWordFamily(f) : x));
+  }, []);
+
+  const removeFromFamily = useCallback(async (familyId: string, wordId: string) => {
+    const f = await apiFetch<ApiWordFamily>(`/api/word/family/${familyId}/member/${wordId}`, { method: "DELETE" });
+    setWordFamilies((prev) => prev.map((x) => x.id === familyId ? toWordFamily(f) : x));
+  }, []);
+
+  const deleteWordFamily = useCallback(async (id: string) => {
+    await apiFetch(`/api/word/family/${id}`, { method: "DELETE" });
+    setWordFamilies((prev) => prev.filter((x) => x.id !== id));
   }, []);
 
   const addWordCategory = useCallback(async (data: { name: string; color: number }) => {
@@ -280,7 +325,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      words, wordCategories, categories, TODAY,
+      words, wordCategories, wordFamilies, categories, TODAY,
       STREAK: profile?.streak ?? 0,
       GOAL: 3,
       wordOfDay: words[0] ?? null,
@@ -292,6 +337,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       login, loginWithToken, logout, register, sendOTP, verifyOTP, setPlan: () => {},
       addWord, updateWord, deleteWord, markReview,
       addWordCategory, deleteWordCategory,
+      createWordFamily, addToFamily, removeFromFamily, deleteWordFamily,
       addCategory, deleteCategory, addSentence, updateSentence, deleteSentence,
     }}>
       {children}

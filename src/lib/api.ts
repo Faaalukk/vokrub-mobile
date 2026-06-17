@@ -30,6 +30,14 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+export type ApiWordFamilyMember = { id: number; family_id: number; word_id: number };
+export type ApiWordFamily = {
+  id: number;
+  customer_id: number;
+  name: string;
+  members: ApiWordFamilyMember[];
+};
+
 export type ApiWordCategory = {
   id: number;
   customer_id: number;

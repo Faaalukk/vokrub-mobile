@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Check, Plus, Tag, X, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Check, Plus, Tag, X } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 
 const POS = ["noun", "verb", "adjective", "adverb", "phrase"];
@@ -20,9 +20,7 @@ export type WordFormData = {
   pos: string;
   meaning: string;
   note: string;
-  synonyms?: string[];
   category_id?: string | null;
-  queuedSynonyms?: string[];
 };
 
 type WordFormProps = {
@@ -38,13 +36,6 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const [meaning, setMeaning] = useState(initial?.meaning ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(initial?.category_id ?? null);
-  const [synonyms, setSynonyms] = useState<string[]>(initial?.synonyms ?? []);
-  const [synInput, setSynInput] = useState("");
-  const synRef = useRef<HTMLInputElement>(null);
-
-  // Datamuse suggestions for "add to practice"
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [queued, setQueued] = useState<Set<string>>(new Set());
 
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -52,46 +43,6 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const [creatingCat, setCreatingCat] = useState(false);
 
   const valid = word.trim() && meaning.trim();
-  const libraryWords = new Set(store.words.map((w) => w.word.toLowerCase()));
-
-  // Debounced fetch suggestions
-  useEffect(() => {
-    const trimmed = word.trim();
-    if (!trimmed || initial) { setSuggestions([]); return; }
-    const timer = setTimeout(() => {
-      fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(trimmed)}&max=12`)
-        .then((r) => r.json())
-        .then((results: { word: string }[]) => {
-          const filtered = results
-            .map((r) => r.word)
-            .filter((w) => w.toLowerCase() !== trimmed.toLowerCase() && !libraryWords.has(w.toLowerCase()));
-          setSuggestions(filtered.slice(0, 8));
-        })
-        .catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word]);
-
-  function toggleQueued(syn: string) {
-    setQueued((prev) => {
-      const next = new Set(prev);
-      next.has(syn) ? next.delete(syn) : next.add(syn);
-      return next;
-    });
-  }
-
-  function addSynonym() {
-    const val = synInput.trim().toLowerCase();
-    if (!val || synonyms.includes(val)) { setSynInput(""); return; }
-    setSynonyms((prev) => [...prev, val]);
-    setSynInput("");
-    synRef.current?.focus();
-  }
-
-  function removeSynonym(s: string) {
-    setSynonyms((prev) => prev.filter((x) => x !== s));
-  }
 
   async function handleCreateCategory() {
     if (!newCatName.trim() || creatingCat) return;
@@ -113,37 +64,6 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
         <input className="vk-input" autoFocus placeholder="e.g. ephemeral" value={word} onChange={(e) => setWord(e.target.value.toLowerCase())} />
       </div>
 
-      {/* Synonym suggestions — add to practice */}
-      {suggestions.length > 0 && (
-        <div className="vk-card-flat" style={{ padding: "13px 14px", background: "var(--accent-tint)", borderColor: "var(--accent)" }}>
-          <div className="vk-row" style={{ gap: 6, marginBottom: 10 }}>
-            <Sparkles size={13} style={{ color: "var(--accent-ink)" }} />
-            <span className="vk-label" style={{ color: "var(--accent-ink)" }}>Also add to practice?</span>
-          </div>
-          <div className="vk-wrap" style={{ gap: 7 }}>
-            {suggestions.map((syn) => {
-              const on = queued.has(syn);
-              return (
-                <span
-                  key={syn}
-                  className={`vk-chip${on ? " is-on" : ""}`}
-                  onClick={() => toggleQueued(syn)}
-                  style={{ display: "flex", alignItems: "center", gap: 5 }}
-                >
-                  {on && <Check size={11} />}
-                  {syn}
-                </span>
-              );
-            })}
-          </div>
-          {queued.size > 0 && (
-            <p className="vk-xs vk-faint" style={{ marginTop: 10, fontWeight: 500 }}>
-              {queued.size} word{queued.size > 1 ? "s" : ""} queued — you&apos;ll fill in meanings after saving.
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="vk-col" style={{ gap: 7 }}>
         <label className="vk-label">Part of speech <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
         <div className="vk-wrap" style={{ gap: 7 }}>
@@ -161,33 +81,6 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       <div className="vk-col" style={{ gap: 7 }}>
         <label className="vk-label">Personal note <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
         <textarea className="vk-textarea" rows={2} placeholder="Where you heard it, an example, a memory…" value={note} onChange={(e) => setNote(e.target.value)} />
-      </div>
-
-      {/* Synonyms (labels) */}
-      <div className="vk-col" style={{ gap: 7 }}>
-        <label className="vk-label">Synonyms <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
-        <div className="vk-wrap" style={{ gap: 7, minHeight: 32 }}>
-          {synonyms.map((s) => (
-            <span key={s} className="vk-chip is-on" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              {s}
-              <X size={11} style={{ cursor: "pointer", opacity: 0.7 }} onClick={() => removeSynonym(s)} />
-            </span>
-          ))}
-        </div>
-        <div className="vk-row" style={{ gap: 8 }}>
-          <input
-            ref={synRef}
-            className="vk-input"
-            placeholder="e.g. fleeting"
-            value={synInput}
-            onChange={(e) => setSynInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSynonym(); } }}
-            style={{ flex: 1 }}
-          />
-          <button className="vk-btn vk-btn-soft vk-btn-sm" onClick={addSynonym} disabled={!synInput.trim()}>
-            <Plus size={15} /> Add
-          </button>
-        </div>
       </div>
 
       {/* Category */}
@@ -258,9 +151,9 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
           className="vk-btn vk-btn-primary"
           style={{ flex: 2 }}
           disabled={!valid}
-          onClick={() => valid && onSave({ word, pos, meaning, note, synonyms, category_id: categoryId, queuedSynonyms: Array.from(queued) })}
+          onClick={() => valid && onSave({ word, pos, meaning, note, category_id: categoryId })}
         >
-          <Check size={18} /> {initial ? "Save changes" : queued.size > 0 ? `Save + add ${queued.size} more` : "Save word"}
+          <Check size={18} /> {initial ? "Save changes" : "Save word"}
         </button>
       </div>
     </div>

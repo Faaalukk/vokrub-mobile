@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check, ChevronRight, Tag, Calendar, Shuffle } from "lucide-react";
+import { Layers, Target, Type, Clock, Sparkles, X, ArrowRight, Check, ChevronRight, Tag, Calendar, Shuffle, Users } from "lucide-react";
 import { useStore } from "../store/StoreContext";
 import FlipCard from "../components/FlipCard";
 import Sheet from "../components/Sheet";
@@ -25,6 +25,7 @@ const DATE_OPTIONS = [
 const SOURCE_OPTIONS = [
   { key: "all",      icon: Layers,   label: "All words" },
   { key: "category", icon: Tag,      label: "By category" },
+  { key: "family",   icon: Users,    label: "By word family" },
   { key: "date",     icon: Calendar, label: "By date added" },
   { key: "random",   icon: Shuffle,  label: "Random 10" },
 ];
@@ -33,13 +34,14 @@ type PracticeSettings = {
   mode: string;
   source: string;
   categoryId: string | null;
+  familyId: string | null;
   dateRange: string;
 };
 
 function shuffle<T>(arr: T[]) { return [...arr].sort(() => Math.random() - 0.5); }
 
-function buildDeck(words: Word[], settings: PracticeSettings, wordOfDay: Word | null): Word[] {
-  const { mode, source, categoryId, dateRange } = settings;
+function buildDeck(words: Word[], settings: PracticeSettings, wordOfDay: Word | null, familyWordIds?: string[]): Word[] {
+  const { mode, source, categoryId, familyId, dateRange } = settings;
 
   if (mode === "daily") return wordOfDay ? [wordOfDay] : [];
 
@@ -47,6 +49,8 @@ function buildDeck(words: Word[], settings: PracticeSettings, wordOfDay: Word | 
 
   if (source === "category" && categoryId) {
     pool = pool.filter((w) => w.category_id === categoryId);
+  } else if (source === "family" && familyId && familyWordIds) {
+    pool = pool.filter((w) => familyWordIds.includes(w.id));
   } else if (source === "date") {
     const now = new Date();
     pool = pool.filter((w) => {
@@ -77,21 +81,24 @@ function PracticeSettingsSheet({
   const store = useStore();
   const [source, setSource] = useState("all");
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [familyId, setFamilyId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState("");
 
   const isSimpleMode = mode === "daily" || mode === "due";
 
   const canStart = isSimpleMode || (
-    source !== "category" && source !== "date"
+    source !== "category" && source !== "family" && source !== "date"
   ) || (
     source === "category" && categoryId !== null
+  ) || (
+    source === "family" && familyId !== null
   ) || (
     source === "date" && dateRange !== ""
   );
 
   function start() {
     if (!canStart) return;
-    onStart({ mode, source: isSimpleMode ? "all" : source, categoryId, dateRange: dateRange || "all" });
+    onStart({ mode, source: isSimpleMode ? "all" : source, categoryId, familyId, dateRange: dateRange || "all" });
   }
 
   return (
@@ -160,6 +167,25 @@ function PracticeSettingsSheet({
                 </div>
                 {store.wordCategories.length === 0 && (
                   <p className="vk-sm vk-faint">No categories yet. Add one when saving a word.</p>
+                )}
+              </div>
+            )}
+
+            {/* Family picker */}
+            {source === "family" && (
+              <div className="vk-col" style={{ gap: 8 }}>
+                <span className="vk-label">Pick a word family</span>
+                {store.wordFamilies.length > 0 ? (
+                  <div className="vk-wrap" style={{ gap: 8 }}>
+                    {store.wordFamilies.map((f) => (
+                      <span key={f.id} className={`vk-chip${familyId === f.id ? " is-on" : ""}`}
+                        onClick={() => setFamilyId(f.id === familyId ? null : f.id)}>
+                        {f.name} <span style={{ opacity: 0.65 }}>({f.wordIds.length})</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="vk-sm vk-faint">No families yet. Open a word and group it with related words.</p>
                 )}
               </div>
             )}
@@ -330,7 +356,8 @@ function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean)
 
 function PracticeSession({ settings, onExit }: { settings: PracticeSettings; onExit: () => void }) {
   const store = useStore();
-  const [deck] = useState(() => buildDeck(store.words, settings, store.wordOfDay));
+  const familyWordIds = settings.familyId ? store.wordFamilies.find((f) => f.id === settings.familyId)?.wordIds : undefined;
+  const [deck] = useState(() => buildDeck(store.words, settings, store.wordOfDay, familyWordIds));
   const [i, setI] = useState(0);
   const [results, setResults] = useState<{ word: string; correct: boolean }[]>([]);
   const [done, setDone] = useState(false);

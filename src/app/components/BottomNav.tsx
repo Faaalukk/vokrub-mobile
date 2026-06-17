@@ -16,7 +16,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   if (pathname === "/auth") return null;
   return (
-    <nav className="vk-tabbar fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: "env(safe-area-inset-bottom, 8px)" }}>
+    <nav className="vk-tabbar">
+      <div className="vk-sidebar-brand">Vokrub</div>
       {tabs.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (

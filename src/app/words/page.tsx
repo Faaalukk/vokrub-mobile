@@ -25,12 +25,16 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
   const store = useStore();
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
 
   const liveFamily = store.wordFamilies.find((f) => f.id === family.id) ?? family;
+  const term = q.trim().toLowerCase();
   const available = store.words.filter((w) =>
     !liveFamily.wordIds.includes(w.id) &&
-    (q === "" || w.word.includes(q.toLowerCase()) || w.meaning.toLowerCase().includes(q.toLowerCase()))
+    (term === "" || w.word.includes(term) || w.meaning.toLowerCase().includes(term))
   );
+  // Offer inline creation when the typed word isn't anywhere in the library yet.
+  const canCreate = term !== "" && !store.words.some((w) => w.word === term);
 
   async function add(wordId: string) {
     setAdding(wordId);
@@ -39,12 +43,28 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
     finally { setAdding(null); }
   }
 
+  if (creatingNew) {
+    return (
+      <Sheet open onClose={onClose} title={`New word — ${family.name}`}>
+        <WordForm
+          initial={{ word: term, pos: "", meaning: "", note: "", category_id: null }}
+          onCancel={() => setCreatingNew(false)}
+          onSave={async (d) => {
+            await store.addNewWordToFamily(family.id, { ...d, synonyms: [] });
+            setCreatingNew(false);
+            setQ("");
+          }}
+        />
+      </Sheet>
+    );
+  }
+
   return (
     <Sheet open onClose={onClose} title={`Add words — ${family.name}`}>
       <div className="vk-col" style={{ gap: 14, padding: "8px 20px 28px" }}>
         <div style={{ position: "relative" }}>
           <Search size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-faint)" }} />
-          <input className="vk-input" placeholder="Search words…" value={q} onChange={(e) => setQ(e.target.value)}
+          <input className="vk-input" placeholder="Search or type a new word…" value={q} onChange={(e) => setQ(e.target.value)}
             style={{ paddingLeft: 38, fontSize: 14 }} autoFocus />
         </div>
         {available.length === 0 ? (
@@ -71,6 +91,11 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
             ))}
           </div>
         )}
+        {canCreate && (
+          <button className="vk-btn vk-btn-line vk-btn-block" onClick={() => setCreatingNew(true)} style={{ fontSize: 14 }}>
+            <Plus size={16} /> Create &ldquo;{term}&rdquo; as a new word
+          </button>
+        )}
         <button className="vk-btn vk-btn-ghost vk-btn-block" onClick={onClose}>
           <Check size={16} /> Done
         </button>
@@ -87,15 +112,21 @@ function FamiliesTab({ onViewWord }: { onViewWord: (w: Word) => void }) {
   const [newFamilyOpen, setNewFamilyOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [withWord, setWithWord] = useState(false); // new-family sheet: starter-word step
   const [addingTo, setAddingTo] = useState<WordFamily | null>(null);
+
+  function closeNewFamily() {
+    setNewFamilyOpen(false);
+    setWithWord(false);
+    setNewName("");
+  }
 
   async function createFamily() {
     if (!newName.trim() || creating) return;
     setCreating(true);
     try {
-      await store.createWordFamily({ name: newName.trim(), wordId: "" as string });
-      setNewName("");
-      setNewFamilyOpen(false);
+      await store.createWordFamily({ name: newName.trim() });
+      closeNewFamily();
     } finally { setCreating(false); }
   }
 
@@ -171,22 +202,35 @@ function FamiliesTab({ onViewWord }: { onViewWord: (w: Word) => void }) {
       )}
 
       {/* New family sheet */}
-      <Sheet open={newFamilyOpen} onClose={() => setNewFamilyOpen(false)} title="New word family">
-        <div className="vk-col" style={{ gap: 14, padding: "8px 20px 28px" }}>
-          <div className="vk-col" style={{ gap: 7 }}>
-            <label className="vk-label">Family name</label>
-            <input className="vk-input" autoFocus placeholder='e.g. "run family"'
-              value={newName} onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createFamily()} />
-          </div>
-          <p className="vk-sm vk-faint">After creating, use "Add words" to link words from your library.</p>
-          <div className="vk-row" style={{ gap: 10 }}>
-            <button className="vk-btn vk-btn-ghost" style={{ flex: 1 }} onClick={() => setNewFamilyOpen(false)}>Cancel</button>
-            <button className="vk-btn vk-btn-primary" style={{ flex: 2 }} disabled={!newName.trim() || creating} onClick={createFamily}>
-              <Check size={17} /> Create family
+      <Sheet open={newFamilyOpen} onClose={closeNewFamily} title={withWord ? "Starter word" : "New word family"}>
+        {withWord ? (
+          <WordForm
+            onCancel={() => setWithWord(false)}
+            onSave={async (d) => {
+              await store.createWordFamily({ name: newName.trim(), newWord: { ...d, synonyms: [] } });
+              closeNewFamily();
+            }}
+          />
+        ) : (
+          <div className="vk-col" style={{ gap: 14, padding: "8px 20px 28px" }}>
+            <div className="vk-col" style={{ gap: 7 }}>
+              <label className="vk-label">Family name</label>
+              <input className="vk-input" autoFocus placeholder='e.g. "run family"'
+                value={newName} onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createFamily()} />
+            </div>
+            <button className="vk-btn vk-btn-line vk-btn-block" disabled={!newName.trim()} onClick={() => setWithWord(true)} style={{ fontSize: 14 }}>
+              <Plus size={16} /> Add a starter word
             </button>
+            <p className="vk-sm vk-faint">Add a starter word now, or create empty and use &ldquo;Add words&rdquo; later.</p>
+            <div className="vk-row" style={{ gap: 10 }}>
+              <button className="vk-btn vk-btn-ghost" style={{ flex: 1 }} onClick={closeNewFamily}>Cancel</button>
+              <button className="vk-btn vk-btn-primary" style={{ flex: 2 }} disabled={!newName.trim() || creating} onClick={createFamily}>
+                <Check size={17} /> Create family
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </Sheet>
 
       {/* Add words sheet */}

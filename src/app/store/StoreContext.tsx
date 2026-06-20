@@ -108,8 +108,9 @@ type StoreValue = {
   updateWord: (id: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   addWordCategory: (data: { name: string; color: number }) => Promise<WordCategory>;
   deleteWordCategory: (id: string) => Promise<void>;
-  createWordFamily: (data: { name: string; wordId?: string }) => Promise<WordFamily>;
+  createWordFamily: (data: { name: string; wordId?: string; newWord?: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => Promise<WordFamily>;
   addToFamily: (familyId: string, wordId: string) => Promise<void>;
+  addNewWordToFamily: (familyId: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   removeFromFamily: (familyId: string, wordId: string) => Promise<void>;
   deleteWordFamily: (id: string) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
@@ -234,17 +235,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setWords((prev) => prev.map((x) => (x.id === id ? toWord(w) : x)));
   }, []);
 
-  const createWordFamily = useCallback(async (data: { name: string; wordId?: string }) => {
+  const createWordFamily = useCallback(async (data: { name: string; wordId?: string; newWord?: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => {
     const body: Record<string, unknown> = { name: data.name };
     if (data.wordId) body.word_id = Number(data.wordId);
+    if (data.newWord) {
+      body.new_word = {
+        word: data.newWord.word,
+        pos: data.newWord.pos,
+        meaning: data.newWord.meaning,
+        note: data.newWord.note,
+        category_id: data.newWord.category_id ? Number(data.newWord.category_id) : null,
+        synonyms: data.newWord.synonyms ?? [],
+      };
+    }
     const f = await apiFetch<ApiWordFamily>("/api/word/family", { method: "POST", body: JSON.stringify(body) });
     const family = toWordFamily(f);
     setWordFamilies((prev) => [...prev, family]);
+    // An inline word is created server-side; refetch so it appears in the library.
+    if (data.newWord) {
+      const ws = await apiFetch<ApiWord[]>("/api/word");
+      setWords(ws.map(toWord));
+    }
     return family;
   }, []);
 
   const addToFamily = useCallback(async (familyId: string, wordId: string) => {
     const f = await apiFetch<ApiWordFamily>(`/api/word/family/${familyId}/member`, { method: "POST", body: JSON.stringify({ word_id: Number(wordId) }) });
+    setWordFamilies((prev) => prev.map((x) => x.id === familyId ? toWordFamily(f) : x));
+  }, []);
+
+  const addNewWordToFamily = useCallback(async (familyId: string, data: { word: string; pos: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+    const newWord = {
+      word: data.word,
+      pos: data.pos,
+      meaning: data.meaning,
+      note: data.note,
+      category_id: data.category_id ? Number(data.category_id) : null,
+      synonyms: data.synonyms ?? [],
+    };
+    const f = await apiFetch<ApiWordFamily>(`/api/word/family/${familyId}/member`, { method: "POST", body: JSON.stringify({ new_word: newWord }) });
+    // The word is created server-side; refetch so it appears in the library + chips.
+    const ws = await apiFetch<ApiWord[]>("/api/word");
+    setWords(ws.map(toWord));
     setWordFamilies((prev) => prev.map((x) => x.id === familyId ? toWordFamily(f) : x));
   }, []);
 
@@ -337,7 +369,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       login, loginWithToken, logout, register, sendOTP, verifyOTP, setPlan: () => {},
       addWord, updateWord, deleteWord, markReview,
       addWordCategory, deleteWordCategory,
-      createWordFamily, addToFamily, removeFromFamily, deleteWordFamily,
+      createWordFamily, addToFamily, addNewWordToFamily, removeFromFamily, deleteWordFamily,
       addCategory, deleteCategory, addSentence, updateSentence, deleteSentence,
     }}>
       {children}

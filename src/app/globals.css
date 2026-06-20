@@ -206,8 +206,10 @@ body {
 @keyframes vk-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes vk-pop  { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 @keyframes vk-up   { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes vk-spin { to { transform: rotate(360deg); } }
 .vk-rise { animation: vk-rise .42s cubic-bezier(.22,1,.36,1) both; }
 .vk-pop  { animation: vk-pop  .3s  cubic-bezier(.22,1,.36,1) both; }
+.vk-spin { animation: vk-spin .8s linear infinite; }
 
 /* ---- tab bar ---- */
 .vk-tabbar {

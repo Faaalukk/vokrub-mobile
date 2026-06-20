@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus, Tag, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Plus, Tag, Loader2, AlertTriangle, BadgeCheck, Sparkles } from "lucide-react";
 import { useStore } from "../store/StoreContext";
+import { lookupWord, translateToThai, type WordInfo } from "../../lib/dictionary";
 
 const POS = ["noun", "verb", "adjective", "adverb", "phrase"];
 
@@ -42,6 +43,28 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const [newCatColor, setNewCatColor] = useState(145);
   const [creatingCat, setCreatingCat] = useState(false);
 
+  // Live dictionary check + auto-fill (real-word validation, Thai meaning, English definition).
+  const [checking, setChecking] = useState(false);
+  const [info, setInfo] = useState<WordInfo | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const w = word.trim().toLowerCase();
+      if (w.length < 2) { setInfo(null); setChecking(false); return; }
+      setChecking(true);
+      const [wordInfo, thai] = await Promise.all([lookupWord(w), translateToThai(w)]);
+      if (cancelled) return;
+      setInfo(wordInfo);
+      setChecking(false);
+      // Prefill only when the user hasn't typed their own value.
+      const autoMeaning = thai || wordInfo.definition || "";
+      if (autoMeaning) setMeaning((prev) => (prev.trim() ? prev : autoMeaning));
+      if (wordInfo.pos.length === 1) setPos((prev) => (prev ? prev : wordInfo.pos[0]));
+    }, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [word]);
+
   const valid = word.trim() && meaning.trim();
 
   async function handleCreateCategory() {
@@ -62,6 +85,21 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       <div className="vk-col" style={{ gap: 7 }}>
         <label className="vk-label">Word</label>
         <input className="vk-input" autoFocus placeholder="e.g. ephemeral" value={word} onChange={(e) => setWord(e.target.value.toLowerCase())} />
+        {word.trim().length >= 2 && (
+          checking ? (
+            <span className="vk-xs vk-faint vk-row" style={{ gap: 5 }}>
+              <Loader2 size={12} className="vk-spin" /> Checking dictionary…
+            </span>
+          ) : info?.valid ? (
+            <span className="vk-xs vk-row" style={{ gap: 5, color: "oklch(0.55 0.13 150)" }}>
+              <BadgeCheck size={13} /> Real word{info.pos.length > 0 && <span className="vk-faint">· {info.pos.join(", ")}</span>}
+            </span>
+          ) : info ? (
+            <span className="vk-xs vk-row" style={{ gap: 5, color: "oklch(0.62 0.13 60)" }}>
+              <AlertTriangle size={12} /> Not in dictionary — you can still save it
+            </span>
+          ) : null
+        )}
       </div>
 
       <div className="vk-col" style={{ gap: 7 }}>
@@ -74,8 +112,21 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       </div>
 
       <div className="vk-col" style={{ gap: 7 }}>
-        <label className="vk-label">Meaning</label>
+        <label className="vk-label">
+          Meaning
+          <span className="vk-faint" style={{ fontWeight: 500 }}> · auto-filled, edit freely</span>
+        </label>
         <textarea className="vk-textarea" rows={2} placeholder="Describe it in your own words…" value={meaning} onChange={(e) => setMeaning(e.target.value)} />
+        {info?.definition && (
+          <button
+            type="button"
+            className="vk-xs vk-row"
+            onClick={() => setMeaning(info.definition!)}
+            style={{ gap: 5, color: "var(--accent-ink)", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}
+          >
+            <Sparkles size={12} /> Use English definition: <span className="vk-faint">{info.definition}</span>
+          </button>
+        )}
       </div>
 
       <div className="vk-col" style={{ gap: 7 }}>

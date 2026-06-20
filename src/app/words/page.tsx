@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plus, Users, BookOpen, Trash2, Dumbbell, X, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Plus, Users, BookOpen, Trash2, Dumbbell, X, Check, Sparkles, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "../store/StoreContext";
 import type { Word, WordFamily } from "../store/StoreContext";
+import { suggestForms, lookupWord, translateToThai, type FormSuggestion } from "../../lib/dictionary";
 import WordCard from "../components/WordCard";
 import Sheet from "../components/Sheet";
 import WordDetail from "../today/WordDetail";
@@ -26,6 +27,8 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
+  const [suggestions, setSuggestions] = useState<FormSuggestion[]>([]);
+  const [addingSug, setAddingSug] = useState<string | null>(null);
 
   const liveFamily = store.wordFamilies.find((f) => f.id === family.id) ?? family;
   const term = q.trim().toLowerCase();
@@ -36,11 +39,36 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
   // Offer inline creation when the typed word isn't anywhere in the library yet.
   const canCreate = term !== "" && !store.words.some((w) => w.word === term);
 
+  // Suggest related family forms (exclusive → exclusively, exclusiveness …) for the typed word.
+  const memberWords = new Set(store.words.filter((w) => liveFamily.wordIds.includes(w.id)).map((w) => w.word));
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const forms = term.length < 3 ? [] : await suggestForms(term);
+      if (!cancelled) setSuggestions(forms);
+    }, 500);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [term]);
+  const freshSuggestions = suggestions.filter((s) => s.word !== term && !memberWords.has(s.word));
+
   async function add(wordId: string) {
     setAdding(wordId);
     try { await store.addToFamily(family.id, wordId); }
     catch { /* already a member — ignore */ }
     finally { setAdding(null); }
+  }
+
+  // Add a suggested form: auto-fetch its meaning, then create + link it.
+  async function addSuggestion(s: FormSuggestion) {
+    setAddingSug(s.word);
+    try {
+      const existing = store.words.find((w) => w.word === s.word);
+      if (existing) { await store.addToFamily(family.id, existing.id); return; }
+      const [info, thai] = await Promise.all([lookupWord(s.word), translateToThai(s.word)]);
+      const meaning = thai || info.definition || "";
+      await store.addNewWordToFamily(family.id, { word: s.word, pos: s.pos, meaning, note: "", synonyms: [] });
+    } catch { /* ignore — likely already a member */ }
+    finally { setAddingSug(null); }
   }
 
   if (creatingNew) {
@@ -95,6 +123,28 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
           <button className="vk-btn vk-btn-line vk-btn-block" onClick={() => setCreatingNew(true)} style={{ fontSize: 14 }}>
             <Plus size={16} /> Create &ldquo;{term}&rdquo; as a new word
           </button>
+        )}
+        {freshSuggestions.length > 0 && (
+          <div className="vk-col" style={{ gap: 8 }}>
+            <span className="vk-xs vk-faint vk-row" style={{ gap: 5 }}>
+              <Sparkles size={12} /> Related forms
+            </span>
+            <div className="vk-wrap" style={{ gap: 8 }}>
+              {freshSuggestions.map((s) => (
+                <button
+                  key={s.word}
+                  className="vk-chip"
+                  disabled={addingSug === s.word}
+                  onClick={() => addSuggestion(s)}
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700 }}>{s.word}</span>
+                  {s.pos && <span className="vk-faint" style={{ fontSize: 11 }}>{s.pos}</span>}
+                  {addingSug === s.word ? <Loader2 size={12} className="vk-spin" /> : <Plus size={12} />}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         <button className="vk-btn vk-btn-ghost vk-btn-block" onClick={onClose}>
           <Check size={16} /> Done

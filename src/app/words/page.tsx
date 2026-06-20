@@ -154,6 +154,74 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
   );
 }
 
+// ── Auto-wrap-into-family prompt (after adding a word) ────────────────────────
+
+function FamilyFromWordSheet({ base, forms, onClose }: { base: Word; forms: FormSuggestion[]; onClose: () => void }) {
+  const store = useStore();
+  const [name, setName] = useState(`${base.word} family`);
+  const [selected, setSelected] = useState<Set<string>>(new Set(forms.map((f) => f.word)));
+  const [busy, setBusy] = useState(false);
+
+  function toggle(word: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(word)) next.delete(word); else next.add(word);
+      return next;
+    });
+  }
+
+  async function create() {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    try {
+      const fam = await store.createWordFamily({ name: name.trim(), wordId: base.id });
+      for (const f of forms.filter((f) => selected.has(f.word))) {
+        const existing = store.words.find((w) => w.word === f.word);
+        if (existing) {
+          await store.addToFamily(fam.id, existing.id);
+          continue;
+        }
+        const [info, thai] = await Promise.all([lookupWord(f.word), translateToThai(f.word)]);
+        await store.addNewWordToFamily(fam.id, { word: f.word, pos: f.pos, meaning: thai || info.definition || "", note: "", synonyms: [] });
+      }
+      onClose();
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Sheet open onClose={onClose} title="Word family found">
+      <div className="vk-col" style={{ gap: 14, padding: "8px 20px 28px" }}>
+        <p className="vk-sm vk-faint vk-row" style={{ gap: 6 }}>
+          <Sparkles size={13} /> Related forms of &ldquo;{base.word}&rdquo; — wrap them into a family?
+        </p>
+        <div className="vk-col" style={{ gap: 7 }}>
+          <label className="vk-label">Family name</label>
+          <input className="vk-input" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="vk-col" style={{ gap: 7 }}>
+          <label className="vk-label">Forms to include</label>
+          <div className="vk-wrap" style={{ gap: 8 }}>
+            {forms.map((f) => (
+              <button key={f.word} className={`vk-chip${selected.has(f.word) ? " is-on" : ""}`} onClick={() => toggle(f.word)}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {selected.has(f.word) ? <Check size={12} /> : <Plus size={12} />}
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 700 }}>{f.word}</span>
+                {f.pos && <span className="vk-faint" style={{ fontSize: 11 }}>{f.pos}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="vk-row" style={{ gap: 10 }}>
+          <button className="vk-btn vk-btn-ghost" style={{ flex: 1 }} onClick={onClose} disabled={busy}>Skip</button>
+          <button className="vk-btn vk-btn-primary" style={{ flex: 2 }} disabled={!name.trim() || busy} onClick={create}>
+            {busy ? <><Loader2 size={16} className="vk-spin" /> Creating…</> : <><Users size={16} /> Create family</>}
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 // ── Families tab ──────────────────────────────────────────────────────────────
 
 function FamiliesTab({ onViewWord }: { onViewWord: (w: Word) => void }) {
@@ -361,6 +429,7 @@ export default function WordsPage() {
   const [detail, setDetail] = useState<Word | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [dupWord, setDupWord] = useState<Word | null>(null);
+  const [familyPrompt, setFamilyPrompt] = useState<{ base: Word; forms: FormSuggestion[] } | null>(null);
 
   return (
     <div className="vk-page">
@@ -404,8 +473,11 @@ export default function WordsPage() {
           onCancel={() => setAddOpen(false)}
           onSave={async (d) => {
             try {
-              await store.addWord(d);
+              const created = await store.addWord(d);
               setAddOpen(false);
+              // Offer to wrap the new word + its related forms into a family.
+              const forms = (await suggestForms(created.word)).filter((f) => f.word !== created.word);
+              if (forms.length) setFamilyPrompt({ base: created, forms });
             } catch (err) {
               if (err instanceof DuplicateWordError) {
                 setAddOpen(false);
@@ -416,6 +488,10 @@ export default function WordsPage() {
           }}
         />
       </Sheet>
+
+      {familyPrompt && (
+        <FamilyFromWordSheet base={familyPrompt.base} forms={familyPrompt.forms} onClose={() => setFamilyPrompt(null)} />
+      )}
 
       {dupWord && (
         <DuplicateWordModal word={dupWord} onClose={() => setDupWord(null)} onView={(w) => { setDupWord(null); setDetail(w); }} />

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sun, BookOpen, MessageCircle, Dumbbell, User } from "lucide-react";
+import { Sun, BookOpen, MessageCircle, ScrollText, Dumbbell, User } from "lucide-react";
 
 const tabs = [
   { href: "/today", label: "Today", icon: Sun },
   { href: "/words", label: "Words", icon: BookOpen },
   { href: "/phrases", label: "Phrases", icon: MessageCircle },
+  { href: "/rules", label: "Rules", icon: ScrollText },
   { href: "/practice", label: "Practice", icon: Dumbbell },
   { href: "/profile", label: "Profile", icon: User },
 ];

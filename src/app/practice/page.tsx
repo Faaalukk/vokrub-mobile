@@ -293,10 +293,16 @@ function MCStep({ card, pool, onAnswer }: { card: Word; pool: Word[]; onAnswer: 
 
 // ── Type it ───────────────────────────────────────────────────────────────────
 
-function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean) => void }) {
+function TypeStep({ card, bank = [], used = [], onAnswer }: { card: Word; bank?: string[]; used?: string[]; onAnswer: (correct: boolean) => void }) {
   const [value, setValue] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const correct = value.trim().toLowerCase() === card.word.trim().toLowerCase();
+  const accepted = [card.word, ...(card.synonyms ?? [])].map((w) => w.trim().toLowerCase()).filter(Boolean);
+  const correct = accepted.includes(value.trim().toLowerCase());
+
+  // Word bank: every answer in the deck. Already-answered words drop out, so the
+  // remaining chips narrow toward the target — picks the right word even when
+  // the meaning matches several and no synonyms were added manually.
+  const usedSet = new Set(used.map((w) => w.toLowerCase()));
 
   function submit() {
     if (!value.trim() || submitted) return;
@@ -310,6 +316,27 @@ function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean)
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
         {card.pos && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75, fontStyle: "italic" }}>{card.pos}</div>}
       </div>
+
+      {bank.length > 1 && (
+        <div className="vk-row" style={{ flexWrap: "wrap", gap: 8 }}>
+          {bank.map((w) => {
+            const isUsed = usedSet.has(w.toLowerCase());
+            return (
+              <button
+                key={w}
+                type="button"
+                className="vk-chip"
+                onClick={() => !isUsed && !submitted && setValue(w)}
+                disabled={isUsed || submitted}
+                style={{ opacity: isUsed ? 0 : 1, pointerEvents: isUsed ? "none" : undefined, cursor: isUsed ? "default" : "pointer" }}
+                aria-hidden={isUsed}
+              >
+                {w}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!submitted ? (
         <div className="vk-col" style={{ gap: 10 }}>
@@ -340,6 +367,9 @@ function TypeStep({ card, onAnswer }: { card: Word; onAnswer: (correct: boolean)
             {!correct && (
               <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>
                 Answer: <strong style={{ fontWeight: 800 }}>{card.word}</strong>
+                {card.synonyms && card.synonyms.length > 0 && (
+                  <span> · also: {card.synonyms.join(", ")}</span>
+                )}
               </div>
             )}
           </div>
@@ -437,7 +467,15 @@ function PracticeSession({ settings, onExit }: { settings: PracticeSettings; onE
       </div>
       <div className="vk-bar"><span style={{ width: `${(i / deck.length) * 100}%` }} /></div>
       {card && effectiveMode === "mc" && <MCStep key={card.id} card={card} pool={store.words} onAnswer={answer} />}
-      {card && effectiveMode === "type" && <TypeStep key={card.id} card={card} onAnswer={answer} />}
+      {card && effectiveMode === "type" && (
+        <TypeStep
+          key={card.id}
+          card={card}
+          bank={[...deck].map((w) => w.word).sort((a, b) => a.localeCompare(b))}
+          used={deck.slice(0, i).map((w) => w.word)}
+          onAnswer={answer}
+        />
+      )}
       {card && (effectiveMode === "flash" || effectiveMode === "due" || effectiveMode === "daily") && <FlashStep card={card} onAnswer={answer} />}
     </div>
   );

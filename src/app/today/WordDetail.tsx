@@ -27,7 +27,7 @@ export default function WordDetail({ word, onClose, onPractice, onViewWord }: Wo
 
   function pinSynonym(syn: string) {
     const next = live.synonyms.includes(syn) ? live.synonyms.filter((s) => s !== syn) : [...live.synonyms, syn];
-    store.updateWord(live.id, { word: live.word, pos: live.pos, meaning: live.meaning, note: live.note, synonyms: next, category_id: live.category_id });
+    store.updateWord(live.id, { word: live.word, pos: live.pos, translate: live.translate, meaning: live.meaning, note: live.note, synonyms: next, category_id: live.category_id });
   }
 
   const allSynonyms = Array.from(new Set([...live.synonyms, ...suggestions]));

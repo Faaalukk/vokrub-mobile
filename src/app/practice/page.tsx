@@ -268,6 +268,7 @@ function MCStep({ card, pool, onAnswer }: { card: Word; pool: Word[]; onAnswer: 
       <div className="vk-card" style={{ padding: "24px 20px", background: "var(--accent)", color: "var(--on-accent)", border: "none", boxShadow: "var(--sh-2)" }}>
         <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>What word means…</div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
+        {card.translate && <div style={{ fontSize: 15, fontWeight: 500, marginTop: 8, opacity: 0.85 }}>{card.translate}</div>}
       </div>
       <div className="vk-col" style={{ gap: 8 }}>
         {options.map((w) => (
@@ -314,6 +315,7 @@ function TypeStep({ card, bank = [], used = [], onAnswer }: { card: Word; bank?:
       <div className="vk-card" style={{ padding: "24px 20px", background: "var(--accent)", color: "var(--on-accent)", border: "none", boxShadow: "var(--sh-2)" }}>
         <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>Spell the word for…</div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
+        {card.translate && <div style={{ fontSize: 15, fontWeight: 500, marginTop: 8, opacity: 0.85 }}>{card.translate}</div>}
         {card.pos && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75, fontStyle: "italic" }}>{card.pos}</div>}
       </div>
 

@@ -19,6 +19,7 @@ const CAT_COLORS = [
 export type WordFormData = {
   word: string;
   pos: string;
+  translate?: string;
   meaning: string;
   note: string;
   category_id?: string | null;
@@ -34,6 +35,7 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const store = useStore();
   const [word, setWord] = useState(initial?.word ?? "");
   const [pos, setPos] = useState(initial?.pos ?? "");
+  const [translate, setTranslate] = useState(initial?.translate ?? "");
   const [meaning, setMeaning] = useState(initial?.meaning ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(initial?.category_id ?? null);
@@ -58,8 +60,9 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       setInfo(wordInfo);
       setChecking(false);
       // Prefill only when the user hasn't typed their own value.
-      const autoMeaning = thai || wordInfo.definition || "";
-      if (autoMeaning) setMeaning((prev) => (prev.trim() ? prev : autoMeaning));
+      // Thai → translate, English definition → meaning (kept separate).
+      if (thai) setTranslate((prev) => (prev.trim() ? prev : thai));
+      if (wordInfo.definition) setMeaning((prev) => (prev.trim() ? prev : wordInfo.definition!));
       if (wordInfo.pos.length === 1) setPos((prev) => (prev ? prev : wordInfo.pos[0]));
     }, 600);
     return () => { cancelled = true; clearTimeout(t); };
@@ -113,8 +116,15 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
 
       <div className="vk-col" style={{ gap: 7 }}>
         <label className="vk-label">
-          Meaning
-          <span className="vk-faint" style={{ fontWeight: 500 }}> · auto-filled, edit freely</span>
+          Translation
+          <span className="vk-faint" style={{ fontWeight: 500 }}> · your language, auto-filled</span>
+        </label>
+        <input className="vk-input" placeholder="เช่น ผู้เช่า" value={translate} onChange={(e) => setTranslate(e.target.value)} />
+      </div>
+
+      <div className="vk-col" style={{ gap: 7 }}>
+        <label className="vk-label">
+          Meaning <span className="vk-faint" style={{ fontWeight: 500 }}>· English definition</span>
         </label>
         <textarea className="vk-textarea" rows={2} placeholder="Describe it in your own words…" value={meaning} onChange={(e) => setMeaning(e.target.value)} />
         {info?.definition && (
@@ -202,7 +212,7 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
           className="vk-btn vk-btn-primary"
           style={{ flex: 2 }}
           disabled={!valid}
-          onClick={() => valid && onSave({ word, pos, meaning, note, category_id: categoryId })}
+          onClick={() => valid && onSave({ word, pos, translate, meaning, note, category_id: categoryId })}
         >
           <Check size={18} /> {initial ? "Save changes" : "Save word"}
         </button>

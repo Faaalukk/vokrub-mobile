@@ -25,7 +25,7 @@ export default function FlipCard({ word, height = 300, hideNote = false }: FlipC
           <span className="vk-eyebrow" style={{ position: "absolute", top: 20, left: 24 }}>Word</span>
           <BoxMeter box={word.box} />
           <div className="vk-display" style={{ fontSize: 38, marginTop: 16 }}>{word.word}</div>
-          {word.pos && <div className="vk-faint vk-sm" style={{ fontStyle: "italic", marginTop: 8, fontWeight: 500 }}>{word.pos}</div>}
+          {word.pos.length > 0 && <div className="vk-faint vk-sm" style={{ fontStyle: "italic", marginTop: 8, fontWeight: 500 }}>{word.pos.join(", ")}</div>}
           <div className="vk-faint vk-xs" style={{ position: "absolute", bottom: 20, fontWeight: 600 }}>Tap to reveal meaning</div>
         </div>
         {/* Back */}

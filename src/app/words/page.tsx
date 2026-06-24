@@ -66,7 +66,7 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
       if (existing) { await store.addToFamily(family.id, existing.id); return; }
       const [info, thai] = await Promise.all([lookupWord(s.word), translateToThai(s.word)]);
       const meaning = thai || info.definition || "";
-      await store.addNewWordToFamily(family.id, { word: s.word, pos: s.pos, meaning, note: "", synonyms: [] });
+      await store.addNewWordToFamily(family.id, { word: s.word, pos: s.pos ? [s.pos] : [], meaning, note: "", synonyms: [] });
     } catch { /* ignore — likely already a member */ }
     finally { setAddingSug(null); }
   }
@@ -75,7 +75,7 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
     return (
       <Sheet open onClose={onClose} title={`New word — ${family.name}`}>
         <WordForm
-          initial={{ word: term, pos: "", meaning: "", note: "", category_id: null }}
+          initial={{ word: term, pos: [], meaning: "", note: "", category_id: null }}
           onCancel={() => setCreatingNew(false)}
           onSave={async (d) => {
             await store.addNewWordToFamily(family.id, { ...d, synonyms: [] });
@@ -105,7 +105,7 @@ function AddWordsSheet({ family, onClose }: { family: WordFamily; onClose: () =>
               <div key={w.id} className="vk-between vk-card-flat" style={{ padding: "12px 14px" }}>
                 <div className="vk-col" style={{ gap: 2 }}>
                   <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 15 }}>{w.word}</span>
-                  {w.pos && <span className="vk-xs vk-faint">{w.pos}</span>}
+                  {w.pos.length > 0 && <span className="vk-xs vk-faint">{w.pos.join(", ")}</span>}
                 </div>
                 <button
                   className="vk-btn vk-btn-soft vk-btn-sm"
@@ -182,7 +182,7 @@ function FamilyFromWordSheet({ base, forms, onClose }: { base: Word; forms: Form
           continue;
         }
         const [info, thai] = await Promise.all([lookupWord(f.word), translateToThai(f.word)]);
-        await store.addNewWordToFamily(fam.id, { word: f.word, pos: f.pos, meaning: thai || info.definition || "", note: "", synonyms: [] });
+        await store.addNewWordToFamily(fam.id, { word: f.word, pos: f.pos ? [f.pos] : [], meaning: thai || info.definition || "", note: "", synonyms: [] });
       }
       onClose();
     } finally { setBusy(false); }
@@ -300,7 +300,7 @@ function FamiliesTab({ onViewWord }: { onViewWord: (w: Word) => void }) {
                           style={{ border: "none", background: "none", cursor: "pointer", padding: "7px 12px 7px 14px", fontFamily: "var(--mono)", fontWeight: 700, fontSize: 13, color: "var(--ink)", display: "flex", alignItems: "center", gap: 6 }}
                         >
                           {w.word}
-                          {w.pos && <span style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--ff)", fontWeight: 600 }}>{w.pos}</span>}
+                          {w.pos.length > 0 && <span style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--ff)", fontWeight: 600 }}>{w.pos.join(", ")}</span>}
                           <BookOpen size={11} style={{ color: "var(--ink-faint)" }} />
                         </button>
                         <button

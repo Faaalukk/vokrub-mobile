@@ -18,7 +18,7 @@ const CAT_COLORS = [
 
 export type WordFormData = {
   word: string;
-  pos: string;
+  pos: string[];
   translate?: string;
   meaning: string;
   note: string;
@@ -34,7 +34,7 @@ type WordFormProps = {
 export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
   const store = useStore();
   const [word, setWord] = useState(initial?.word ?? "");
-  const [pos, setPos] = useState(initial?.pos ?? "");
+  const [pos, setPos] = useState<string[]>(initial?.pos ?? []);
   const [translate, setTranslate] = useState(initial?.translate ?? "");
   const [meaning, setMeaning] = useState(initial?.meaning ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
@@ -63,7 +63,7 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       // Thai → translate, English definition → meaning (kept separate).
       if (thai) setTranslate((prev) => (prev.trim() ? prev : thai));
       if (wordInfo.definition) setMeaning((prev) => (prev.trim() ? prev : wordInfo.definition!));
-      if (wordInfo.pos.length === 1) setPos((prev) => (prev ? prev : wordInfo.pos[0]));
+      if (wordInfo.pos.length > 0) setPos((prev) => (prev.length ? prev : wordInfo.pos));
     }, 600);
     return () => { cancelled = true; clearTimeout(t); };
   }, [word]);
@@ -106,10 +106,16 @@ export default function WordForm({ initial, onSave, onCancel }: WordFormProps) {
       </div>
 
       <div className="vk-col" style={{ gap: 7 }}>
-        <label className="vk-label">Part of speech <span className="vk-faint" style={{ fontWeight: 500 }}>· optional</span></label>
+        <label className="vk-label">Part of speech <span className="vk-faint" style={{ fontWeight: 500 }}>· optional, pick any</span></label>
         <div className="vk-wrap" style={{ gap: 7 }}>
           {POS.map((p) => (
-            <span key={p} className={`vk-chip${pos === p ? " is-on" : ""}`} onClick={() => setPos(pos === p ? "" : p)}>{p}</span>
+            <span
+              key={p}
+              className={`vk-chip${pos.includes(p) ? " is-on" : ""}`}
+              onClick={() => setPos((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])}
+            >
+              {p}
+            </span>
           ))}
         </div>
       </div>

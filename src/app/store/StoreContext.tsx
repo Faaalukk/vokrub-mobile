@@ -18,7 +18,7 @@ export type WordFamily = {
 export type Word = {
   id: string;
   word: string;
-  pos: string;
+  pos: string[];
   translate: string;
   meaning: string;
   note: string;
@@ -39,6 +39,7 @@ function toWord(w: ApiWord): Word {
   return {
     ...w,
     id: String(w.id),
+    pos: w.pos ?? [],
     translate: w.translate ?? "",
     category_id: w.category_id != null ? String(w.category_id) : null,
     synonyms: w.synonyms ?? [],
@@ -106,13 +107,13 @@ type StoreValue = {
   sendOTP: (phone: string) => Promise<void>;
   verifyOTP: (phone: string, code: string) => Promise<void>;
   setPlan: (p: "free" | "pro") => void;
-  addWord: (data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<Word>;
-  updateWord: (id: string, data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
+  addWord: (data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<Word>;
+  updateWord: (id: string, data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   addWordCategory: (data: { name: string; color: number }) => Promise<WordCategory>;
   deleteWordCategory: (id: string) => Promise<void>;
-  createWordFamily: (data: { name: string; wordId?: string; newWord?: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => Promise<WordFamily>;
+  createWordFamily: (data: { name: string; wordId?: string; newWord?: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => Promise<WordFamily>;
   addToFamily: (familyId: string, wordId: string) => Promise<void>;
-  addNewWordToFamily: (familyId: string, data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
+  addNewWordToFamily: (familyId: string, data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => Promise<void>;
   removeFromFamily: (familyId: string, wordId: string) => Promise<void>;
   deleteWordFamily: (id: string) => Promise<void>;
   deleteWord: (id: string) => Promise<void>;
@@ -222,7 +223,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCategories([]);
   }, []);
 
-  const addWord = useCallback(async (data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+  const addWord = useCallback(async (data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
     const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
     const { word: w, streak } = await createWord(payload); // throws DuplicateWordError on 409
     const word = toWord(w);
@@ -231,13 +232,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return word;
   }, []);
 
-  const updateWord = useCallback(async (id: string, data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+  const updateWord = useCallback(async (id: string, data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
     const payload = { ...data, category_id: data.category_id ? Number(data.category_id) : null, synonyms: data.synonyms ?? [] };
     const w = await apiFetch<ApiWord>(`/api/word/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     setWords((prev) => prev.map((x) => (x.id === id ? toWord(w) : x)));
   }, []);
 
-  const createWordFamily = useCallback(async (data: { name: string; wordId?: string; newWord?: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => {
+  const createWordFamily = useCallback(async (data: { name: string; wordId?: string; newWord?: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null } }) => {
     const body: Record<string, unknown> = { name: data.name };
     if (data.wordId) body.word_id = Number(data.wordId);
     if (data.newWord) {
@@ -266,7 +267,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setWordFamilies((prev) => prev.map((x) => x.id === familyId ? toWordFamily(f) : x));
   }, []);
 
-  const addNewWordToFamily = useCallback(async (familyId: string, data: { word: string; pos: string; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
+  const addNewWordToFamily = useCallback(async (familyId: string, data: { word: string; pos: string[]; translate?: string; meaning: string; note: string; synonyms?: string[]; category_id?: string | null }) => {
     const newWord = {
       word: data.word,
       pos: data.pos,

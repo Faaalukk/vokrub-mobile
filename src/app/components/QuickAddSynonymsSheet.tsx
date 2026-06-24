@@ -42,7 +42,7 @@ export default function QuickAddSynonymsSheet({ synonyms, originalWord, onClose 
     try {
       await store.addWord({
         word: item.word,
-        pos: item.pos,
+        pos: item.pos ? [item.pos] : [],
         meaning: item.meaning.trim(),
         note: "",
         synonyms: [originalWord],

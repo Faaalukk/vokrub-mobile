@@ -28,7 +28,7 @@ export default function DuplicateWordModal({ word, onView, onClose }: Props) {
           <div className="vk-col" style={{ gap: 8 }}>
             <div className="vk-row" style={{ gap: 8, alignItems: "baseline" }}>
               <span style={{ fontFamily: "var(--mono)", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>{word.word}</span>
-              {word.pos && <span className="vk-chip" style={{ fontSize: 11 }}>{word.pos}</span>}
+              {word.pos.length > 0 && <span className="vk-chip" style={{ fontSize: 11 }}>{word.pos.join(", ")}</span>}
             </div>
             <p className="vk-body" style={{ color: "var(--ink-soft)", margin: 0 }}>{word.meaning}</p>
             {word.note && (

@@ -316,7 +316,7 @@ function TypeStep({ card, bank = [], used = [], onAnswer }: { card: Word; bank?:
         <div className="vk-eyebrow" style={{ color: "color-mix(in oklch, white 65%, transparent)", marginBottom: 10 }}>Spell the word for…</div>
         <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: "-0.02em" }}>{card.meaning}</div>
         {card.translate && <div style={{ fontSize: 15, fontWeight: 500, marginTop: 8, opacity: 0.85 }}>{card.translate}</div>}
-        {card.pos && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75, fontStyle: "italic" }}>{card.pos}</div>}
+        {card.pos.length > 0 && <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75, fontStyle: "italic" }}>{card.pos.join(", ")}</div>}
       </div>
 
       {bank.length > 1 && (

@@ -31,7 +31,8 @@ export default function FlipCard({ word, height = 300, hideNote = false }: FlipC
         {/* Back */}
         <div className="vk-flip-face vk-flip-back" style={{ ...faceBase, background: "var(--accent)", color: "var(--on-accent)", boxShadow: "var(--sh-2)", justifyContent: "center", border: "none" }}>
           <span className="vk-eyebrow" style={{ position: "absolute", top: 20, left: 24, color: "color-mix(in oklch, white 70%, transparent)" }}>Meaning</span>
-          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.3, letterSpacing: "-0.02em" }}>{word.meaning}</div>
+          {word.translate && <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.3, letterSpacing: "-0.02em" }}>{word.translate}</div>}
+          <div style={{ fontSize: word.translate ? 16 : 22, fontWeight: word.translate ? 500 : 700, marginTop: word.translate ? 8 : 0, opacity: word.translate ? 0.9 : 1, lineHeight: 1.4, letterSpacing: "-0.02em" }}>{word.meaning}</div>
           {!hideNote && word.note && <div style={{ fontSize: 14, marginTop: 16, opacity: 0.85, lineHeight: 1.5, fontWeight: 500 }}>"{word.note}"</div>}
           <div style={{ position: "absolute", bottom: 20, fontSize: 11.5, fontWeight: 600, opacity: 0.7 }}>Tap to flip back</div>
         </div>

@@ -50,6 +50,7 @@ export type ApiWord = {
   customer_id: number;
   word: string;
   pos: string;
+  translate: string;
   meaning: string;
   note: string;
   category_id: number | null;
